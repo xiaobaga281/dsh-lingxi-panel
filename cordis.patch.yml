@@ -1,0 +1,6 @@
+# 灵犀：一个面板，自闭环。
+# 进化与记忆都由本包自己产生：memory/ 存记忆，运行统计与宿主会话日志现算指标。
+- insert:
+    - id: lingxi-panel
+      name: dsh-lingxi-panel
+      config: {}
