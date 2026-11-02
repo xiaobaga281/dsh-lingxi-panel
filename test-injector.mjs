@@ -112,7 +112,7 @@ await check('会话销毁后清空状态', async () => {
 
 
 await check('失败文本规范化：同一场景得到同一键', async () => {
-  const a = canonicalFailure('D:\\5\\新建文件夹\\foo.mjs 第 12 行报错，exit code 1');
+  const a = canonicalFailure('C:\\work\\demo\\foo.mjs 第 12 行报错，exit code 1');
   const b = canonicalFailure('D:\\9\\other\\bar.mjs 第 874 行报错，exit code 2');
   assert.equal(a, b);
   assert.ok(a.includes('<path>'));
