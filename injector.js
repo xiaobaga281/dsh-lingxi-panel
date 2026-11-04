@@ -75,6 +75,21 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   }
 
   /** 会话的主导场景：最近用过的工具里出现最多的那一类。 */
+  /** 中英混合的 2-gram：拉丁词保持完整，CJK 字符两两成组。 */
+  function coreGramsOf(text) {
+    const grams = new Set();
+    for (const word of String(text ?? '').toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+      if (word.length === 0) continue;
+      if (/^[\p{Script=Latin}\p{N}]+$/u.test(word)) {
+        if (word.length >= 2) grams.add(word);
+        continue;
+      }
+      const chars = [...word];
+      for (let i = 0; i + 1 < chars.length; i += 1) grams.add(chars[i] + chars[i + 1]);
+    }
+    return [...grams];
+  }
+
   function dominantScene(sessionId) {
     const counts = new Map();
     for (const [tool, count] of recentTools.get(sessionId)?.entries() ?? []) {
@@ -258,10 +273,19 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         if (coreRecords > 0 && typeof memory.listVisible === 'function') {
           try {
             const visible = await memory.listVisible({ context, limit: 60 });
-            const core = visible.items
+            const coreAll = visible.items
               .filter((record) => record.kind === 'constraint' || record.kind === 'fact')
-              .filter((record) => record.status === 'active')
-              .slice(0, coreRecords);
+              .filter((record) => record.status === 'active');
+            // 弱相关门：与当前任务毫无词法交集的核心记忆不注入，防止旧任务的经验干扰新任务。
+            // 中文没有空格：按 2-gram 切，避免整句无法与正文匹配。
+            const coreGrams = coreGramsOf(String(query ?? ''));
+            const core = coreAll.filter((record) => {
+              // 无词可判（空输入/纯符号）→ 放行（保守）。
+              if (coreGrams.length === 0) return true;
+              const haystack = (String(record.text ?? '') + ' ' + (record.topics ?? []).join(' ')).toLowerCase();
+              return coreGrams.some((gram) => haystack.includes(gram));
+            }).slice(0, coreRecords);
+            stats.coreGated = (stats.coreGated ?? 0) + Math.max(0, coreAll.length - core.length);
             for (const record of core) {
               if (seen.has(record.id)) continue;
               seen.add(record.id);

@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { canonicalFailure, createInjector, looksLikeCorrection, userMessageText } from './injector.js';
 
 const calls = [];
-function fakeMemory({ topicHits = null, text = '【灵犀记忆】\n用户约束：\n- 先读再改', items = [{ record: { id: 'm1', kind: 'lesson', text: '当「read」遇到「FS_NOT_FOUND」时先确认路径存在', confidence: 0.8, topics: ['tool:read'], scope: { kind: 'machine', id: '' }, evidence: 2, status: 'candidate', provenance: [], meta: {} } }] } = {}) {
+function fakeMemory(options = {}) {
+  const { topicHits = null, text = '【灵犀记忆】\n用户约束：\n- 先读再改', items = [{ record: { id: 'm1', kind: 'lesson', text: '当「read」遇到「FS_NOT_FOUND」时先确认路径存在', confidence: 0.8, topics: ['tool:read'], scope: { kind: 'machine', id: '' }, evidence: 2, status: 'candidate', provenance: [], meta: {} } }], ...memory } = options;
   return {
     async recall(query, options) {
       calls.push(['recall', query, options?.context?.sessionId]);
@@ -20,6 +21,14 @@ function fakeMemory({ topicHits = null, text = '【灵犀记忆】\n用户约束
       calls.push(['findByTopic', topic, options?.context?.sessionId]);
       return typeof topicHits === 'function' ? topicHits(topic) : [];
     },
+
+    ...(memory.listVisible !== undefined
+      ? { listVisible: typeof memory.listVisible === 'function' ? memory.listVisible : async () => memory.listVisible }
+      : { listVisible: async () => ({ items: [], total: 0, blocked: 0 }) }),
+    noteExposure: async () => 0,
+    async find() { return null; },
+    async exportAll() { return { records: [] }; },
+    async importRecords() { return { imported: 0, skipped: 0 }; },
 
     async remember(input, options) {
       calls.push(['remember', input, options?.context?.sessionId]);
@@ -340,11 +349,12 @@ await check('程序性记忆：模式键对滑动不敏感', async () => {
 });
 
 
-await check('常驻核心：最强约束在无关问法下仍然注入', async () => {
+await check('核心记忆弱相关门：相关注入，无关不硬塞', async () => {
   const memory = fakeMemory({ text: '', items: [] });
+  // recall 返回 abstain，但核心注入走 listVisible，与 recall 无关 —— 修 fixture：让 text 含核心条目文本以便断言可区分
   memory.listVisible = async () => ({
     items: [
-      { id: 'core-1', kind: 'constraint', text: '永远先读文件再改', status: 'active', scope: { kind: 'machine', id: '' }, evidence: 9, confidence: 0.95, topics: [], provenance: [], meta: {} },
+      { id: 'core-1', kind: 'constraint', text: '改文件前先 read 一次当前内容', status: 'active', scope: { kind: 'machine', id: '' }, evidence: 9, confidence: 0.95, topics: ['tool:edit'], provenance: [], meta: {} },
       { id: 'core-2', kind: 'fact', text: '本机输出目录是 D 盘', status: 'active', scope: { kind: 'machine', id: '' }, evidence: 3, confidence: 0.8, topics: [], provenance: [], meta: {} },
     ],
     total: 2,
@@ -352,11 +362,17 @@ await check('常驻核心：最强约束在无关问法下仍然注入', async (
   });
   memory.findByTopic = async () => [];
   const injector = createInjector({ memory, listWorkspace: async () => 'ws-1' });
-  await injector.refresh('s1', '今天天气怎么样');
+  // 问输出目录 → 目录相关注入，文件约束无关被挡
+  await injector.refresh('s1', '本机的输出目录在哪');
   const text = injector.textFor('s1');
-  assert.ok(text.includes('先读文件再改'), text);
-  assert.ok(text.includes('输出目录'), text);
-  assert.equal(injector.config().coreRecords, 3);
+  assert.ok(text.includes('输出目录'), text.slice(0, 150));
+  assert.equal(text.includes('先 read'), false, 'unrelated core must be gated');
+  assert.ok((injector.stats().coreGated ?? 0) >= 1);
+
+  // 换成改文件任务 → 文件约束相关注入
+  await injector.refresh('s2', '帮我改一下这个文件');
+  const text2 = injector.textFor('s2');
+  assert.ok(text2.includes('先 read'), 'related core should inject: ' + text2.slice(0, 150));
 });
 
 
