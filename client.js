@@ -1725,7 +1725,7 @@ window.__ModuleLoader__.load({
           const holes = coverage.holes ?? [];
           return h(Card, { title: t('coverageTitle'), hint: t('coverageHint') },
             h('div', { className: 'lg-metric-row' },
-              Metric({ label: t('coverageRatio').replace('{c}', int(coverage.covered)).replace('{t}', int(coverage.total)), value: coverage.ratio === null ? '—' : pct(coverage.ratio) })),
+              Metric({ label: t('coverageRatio').replace('{c}', int(coverage.covered)).replace('{t}', int(coverage.total)), value: coverage.ratio === null ? '—' : pct(coverage.ratio), onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) })),
             holes.length === 0
               ? h('div', { className: 'lg-status' }, t('coverageNone'))
               : h('div', { className: 'lg-rows', style: { marginTop: 10 } }, holes.map((hole) =>
@@ -1848,7 +1848,7 @@ window.__ModuleLoader__.load({
             ? h('div', { className: 'lg-status' }, t('evolveIdle'))
             : h('div', null,
                 h('div', { className: 'lg-metric-row' },
-                  Metric({ label: t('evolveTrials'), value: int(evolution.trials ?? 0) }),
+                  Metric({ label: t('evolveTrials'), value: int(evolution.trials ?? 0), onClick: () => onDetail(t('detailHits'), { minHits: 2, limit: 100 }) }),
                   Metric({ label: t('evolveFitness'), value: int(evolution.lastFitness ?? 0) }),
                   Metric({ label: t('evolveBest'), value: evolution.bestArmId ?? '—' }),
                   Metric({ label: t('evolveBestMean'), value: evolution.bestMean === null || evolution.bestMean === undefined ? '—' : String(evolution.bestMean) })),
@@ -2323,10 +2323,10 @@ window.__ModuleLoader__.load({
         h(Card, { title: t('injectTitle'), hint: t('localOnly') },
           h('div', { className: 'lg-metric-row' },
             Metric({ label: t('injectSessions'), value: int(injection?.sessionsWithMemory ?? 0) }),
-            Metric({ label: t('injectHits'), value: int(injection?.hits ?? 0) }),
-            Metric({ label: t('injectMisses'), value: int(injection?.misses ?? 0) }),
-            Metric({ label: t('injectCaptured'), value: int(injection?.captured ?? 0) }),
-            Metric({ label: t('injectRepeat'), value: int(injection?.repeatFailures ?? 0) }),
+            Metric({ label: t('injectHits'), value: int(injection?.hits ?? 0), onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) }),
+            Metric({ label: t('injectMisses'), value: int(injection?.misses ?? 0), onClick: () => onDetail(t('detailMisses'), { minMisses: 1, limit: 100 }) }),
+            Metric({ label: t('injectCaptured'), value: int(injection?.captured ?? 0), onClick: () => onDetail(t('detailCaptured'), { source: 'tool-failure', limit: 100 }) }),
+            Metric({ label: t('injectRepeat'), value: int(injection?.repeatFailures ?? 0), onClick: () => onFailures(t('detailFailures')) }),
             Metric({ label: t('injectRefined'), value: int(injection?.refined ?? 0) }),
             Metric({ label: t('injectChars'), value: int(injection?.lastChars ?? 0) })),
           h('div', { className: 'lg-status' }, t('injectHint')),
