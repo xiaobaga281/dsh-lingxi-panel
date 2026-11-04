@@ -131,12 +131,15 @@ await check('自我纠错更保守：3 次证伪不隔离，4 次才隔离', asy
   assert.equal(planHygiene([four], { now }).quarantine[0].id, 'four');
 });
 
-await check('降级：反复证伪且从未命中的生效教训退回候选', async () => {
+await check('降级：按相关命中率降级，样本不足或命中率达标的不动', async () => {
   const now = Date.now();
-  const active = { ...base, id: 'act', status: 'active', hitCount: 0, missCount: 3, confidence: 0.9 };
-  const usedOnce = { ...base, id: 'used', status: 'active', hitCount: 1, missCount: 5 };
-  const fewMisses = { ...base, id: 'few', status: 'active', hitCount: 0, missCount: 2 };
-  const plan = planHygiene([active, usedOnce, fewMisses], { now });
+  // 命中率 0/13=0% < 30%，样本 13 ≥ 10 → 降级
+  const active = { ...base, id: 'act', status: 'active', hitCount: 0, missCount: 13, confidence: 0.9 };
+  // 命中率 10/26 ≈ 38% ≥ 30% → 不降（高曝光场景 miss 多是正常的）
+  const healthy = { ...base, id: 'healthy', status: 'active', hitCount: 10, missCount: 16, confidence: 0.9 };
+  // 样本 5 < 10 → 不降
+  const fewSamples = { ...base, id: 'few', status: 'active', hitCount: 0, missCount: 5 };
+  const plan = planHygiene([active, healthy, fewSamples], { now });
   assert.deepEqual(plan.demote.map((item) => item.id), ['act']);
 });
 

@@ -212,7 +212,12 @@ export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, stal
   for (const record of list) {
     if (String(record.status ?? '') !== 'active') continue;
     if (Number(record.hitCount ?? 0) > 0) continue;
-    if (Number(record.missCount ?? 0) < 3) continue;
+    // 用相关命中率而不是 miss 绝对数：高曝光场景 miss 天然多，
+    // 只有命中率确实差（<0.3）且样本足够（≥10 次相关判定）才降级。
+    const hits = Number(record.hitCount ?? 0);
+    const misses = Number(record.missCount ?? 0);
+    if (hits + misses < 10) continue;
+    if (hits / (hits + misses) >= 0.3) continue;
     if (String(record.kind ?? '') !== 'lesson' && String(record.kind ?? '') !== 'constraint') continue;
     if (quarantine.some((item) => item.id === record.id)) continue;
     demote.push({ id: record.id, misses: Number(record.missCount ?? 0), reason: 'warn-ineffective' });
