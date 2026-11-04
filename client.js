@@ -873,6 +873,11 @@ window.__ModuleLoader__.load({
       padding: 18px 18px 28px; display: flex; flex-direction: column; gap: 12px;
     }
     .lg-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    /* 抽屉是 fixed 全屏浮层，右上角与宿主的窗口控制按钮（最小化/最大化/关闭）重叠：
+       头部整行下移让出标题栏，关闭按钮右侧再留 92px，避免误点系统按钮。 */
+    .lg-drawer { padding-top: 52px; }
+    .lg-drawer-head { padding-right: 92px; }
+    .lg-drawer-close { flex: 0 0 auto; }
 .lg-root {
   height: 100%; width: 100%; overflow-y: auto; overflow-x: hidden;
   background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary);
@@ -1238,7 +1243,7 @@ window.__ModuleLoader__.load({
         h('div', null,
           h('div', { className: 'lg-row-title' }, detail.title),
           detail.subtitle !== undefined ? h('div', { className: 'lg-row-meta' }, detail.subtitle) : null),
-        h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onClose }, t('detailClose')),
+        h('button', { type: 'button', className: 'lg-btn lg-btn-ghost lg-drawer-close', onClick: onClose }, t('detailClose')),
       );
 
       let body;
