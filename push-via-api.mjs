@@ -49,7 +49,8 @@ for (const commit of pending) {
   const files = run(`git diff-tree --no-commit-id --name-only -r ${commit}`).split('\n').filter(Boolean);
   const blobs = [];
   for (const file of files) {
-    const content = readFileSync(file);
+    // 用 git show 拿入库内容（autocrlf=true 时工作区是 CRLF，直接读会算出不同的 blob sha）。
+    const content = Buffer.from(execFileSync('git', ['show', `${commit}:${file}`], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }), 'utf8');
     const blobRes = await api('git/blobs', {
       method: 'POST',
       body: JSON.stringify({ content: content.toString('base64'), encoding: 'base64' }),
@@ -64,7 +65,7 @@ for (const commit of pending) {
 
   // 基于远端 head + 本 commit 的完整树：用 git 生成该 commit 的树与其父树的 diff 基线不通用，
   // 所以改用"远端树 + 变更文件"合成新树。
-  const baseTreeRes = await api(`git/trees/${remoteHead}`);
+  const baseTreeRes = await api(`git/trees/${remoteHead}?recursive=1`);
   const baseTree = await baseTreeRes.json();
   const entries = [...baseTree.tree.filter((entry) => entry.type === 'blob')];
   for (const blob of blobs) {
@@ -96,8 +97,11 @@ for (const commit of pending) {
     process.exit(1);
   }
   const newCommit = (await commitRes.json()).sha;
-  if (newCommit !== commit) {
-    console.error(`commit sha mismatch: api=${newCommit} local=${commit}`);
+  // sha 不可能逐字节一致（时间戳/时区），内容等价由树校验保证：
+  const checkRes = await api(`git/commits/${newCommit}`);
+  const remoteTreeOfCommit = (await checkRes.json()).tree.sha;
+  if (remoteTreeOfCommit !== treeSha) {
+    console.error(`tree still mismatch after commit: ${remoteTreeOfCommit}`);
     process.exit(1);
   }
 
@@ -110,7 +114,7 @@ for (const commit of pending) {
     process.exit(1);
   }
   remoteHead = newCommit;
-  console.log('pushed commit', newCommit.slice(0, 7), message.split('\n')[0].slice(0, 50));
+  console.log('pushed commit', newCommit.slice(0, 7), '(local-equivalent', commit.slice(0, 7) + ')', message.split('\n')[0].slice(0, 40));
 }
 
 console.log('all pending commits pushed via API');
