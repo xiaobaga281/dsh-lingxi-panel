@@ -312,8 +312,6 @@ window.__ModuleLoader__.load({
         liveLessons: '教训（记忆库）',
         liveFacts: '约束与事实（记忆库）',
         liveSkills: '技能候选（记忆库）',
-        legacyTitle: '历史快照',
-        legacyNote: '写它的旧 LSE 插件已停用，这些数据不会再增长',
         noLiveLessons: '记忆库里还没有教训。',
         noLiveFacts: '记忆库里还没有约束或事实。',
         noLiveSkills: '记忆库里还没有技能候选。',
@@ -401,7 +399,6 @@ window.__ModuleLoader__.load({
         liveToolErrors: '工具失败',
         liveSampled: '抽样最近 {n} 个会话',
         contextNote: '未识别当前会话，仅展示全局记忆。',
-        snapshotNote: '来自旧进化库（停更快照）',
       },
       en: {
         tab: 'Lingxi',
@@ -690,8 +687,6 @@ window.__ModuleLoader__.load({
         liveLessons: 'Lessons (memory)',
         liveFacts: 'Constraints and facts (memory)',
         liveSkills: 'Skill candidates (memory)',
-        legacyTitle: 'Historical snapshot',
-        legacyNote: 'Written by the disabled legacy LSE plugin; it will not grow',
         noLiveLessons: 'No lessons in the memory library yet.',
         noLiveFacts: 'No constraints or facts in the memory library yet.',
         noLiveSkills: 'No skill candidates in the memory library yet.',
@@ -779,7 +774,6 @@ window.__ModuleLoader__.load({
         liveToolErrors: 'Tool errors',
         liveSampled: 'sampled last {n} sessions',
         contextNote: 'No current session detected; only global memory is shown.',
-        snapshotNote: 'from legacy evolution store (stale snapshot)',
       },
     };
 

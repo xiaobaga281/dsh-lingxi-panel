@@ -62,11 +62,10 @@ node push-via-api.mjs   # git HTTPS 不通时，走 GitHub REST API 推送（树
 
 | 半边 | 来源 |
 | --- | --- |
-| 进化 | 只读本机进化库 `~/.dsh/lse-data-desktop`（回退 `lingxi-data-desktop` / `lse-data-v2` / `lingxi-data-v2`） |
-| 记忆 | 自持 `~/.dsh/lingxi-memory`（`memory.json` 原子写 + 滚动备份 + `.meta.json` + `injection-status.json` + `metrics.json` 日粒度指标） |
+| 记忆 + 技能 + 进化 | 全部自持在唯一目录 `~/.dsh/lingxi-memory/`（`memory.json` 原子写 + 滚动备份 + `metrics.json` 日粒度指标 + `quality.jsonl` + `injection-status.json`）；技能是库内 `kind:skill` 记录，不写任何文件夹 |
 | 实时 | 宿主 `sessionPersistence`（只读会话日志，抽样 + 缓存 60s） |
 
-不再读取任何旧 LSE 插件的数据目录；旧库导入路由已移除，插件自身闭环。
+不读也不写任何旧插件目录（`~/.dsh/lse-data-*`、`lingxi-data-*`、`skills` 均为旧 LSE 残留，可安全删除）；插件自身闭环，唯一写盘位置是 `~/.dsh/lingxi-memory/`。
 
 ## 工具守卫（动作层拦截）
 
