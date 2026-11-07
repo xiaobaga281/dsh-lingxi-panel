@@ -2231,12 +2231,12 @@ window.__ModuleLoader__.load({
                 busy === 'hygiene' ? '…' : t('hygieneRun')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
-        h(Card, { title: t('storageTitle'), hint: t('storageHint') },
+          })(),
+          h(Card, { title: t('storageTitle'), hint: t('storageHint') },
           h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
           h('div', { className: 'lg-search' },
             h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))));
-        })(),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate')))),
         ),
 
         h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
