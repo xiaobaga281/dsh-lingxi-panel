@@ -306,6 +306,7 @@ export function apply(ctx, config) {
       corrections: current.corrections - lastStats.corrections,
       correctionPenalized: current.correctionPenalized - lastStats.correctionPenalized,
       adviceAdopted: current.adviceAdopted - lastStats.adviceAdopted,
+      coreGated: (current.coreGated ?? 0) - (lastStats.coreGated ?? 0),
       adviceIgnored: current.adviceIgnored - lastStats.adviceIgnored,
       searches: searchStats.total - lastSearchStats.total,
       searchAbstained: searchStats.abstained - lastSearchStats.abstained,

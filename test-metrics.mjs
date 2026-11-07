@@ -345,6 +345,7 @@ await check('指标计数器包含守卫三项', async () => {
   assert.equal(counters.alertsRaised, 0);
   assert.equal(counters.adviceAdopted, 0);
   assert.equal(counters.adviceIgnored, 0);
+  assert.equal(counters.coreGated, 0);
   const days = mergeDelta({}, { guardDenied: 2, guardEffective: 1 });
   const today = days[dayKey(Date.now())];
   assert.equal(today.guardDenied, 2);

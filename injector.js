@@ -222,6 +222,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
     guardChecked: 0,
     corrections: 0,
     adviceAdopted: 0,
+    coreGated: 0,
     adviceIgnored: 0,
     adviceByCode: {},
     correctionPenalized: 0,
@@ -798,7 +799,8 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         const summary = {};
         for (const [code, bucket] of adviceByCode.entries()) {
           const total = bucket.adopted + bucket.ignored;
-          if (total < 3) continue;
+          // 样本 ≥2 就汇总：真实失败提示本来就少，3 太保守。
+          if (total < 2) continue;
           summary[code] = { adopted: bucket.adopted, ignored: bucket.ignored, rate: Math.round((bucket.adopted / total) * 1000) / 10 };
         }
         return summary;

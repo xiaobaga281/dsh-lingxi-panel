@@ -46,6 +46,7 @@ export function emptyCounters() {
     alertsRaised: 0,
     adviceAdopted: 0,
     adviceIgnored: 0,
+    coreGated: 0,
     chars: 0,
     refreshes: 0,
   };
