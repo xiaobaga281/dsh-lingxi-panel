@@ -1229,7 +1229,7 @@ window.__ModuleLoader__.load({
             hint !== undefined ? h('div', { className: 'lg-row-meta' }, hint) : null),
           h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸')),
         open
-          ? h('div', { style: { marginTop: 12, display: 'grid', gap: 12 } }, children)
+          ? h('div', { style: { marginTop: 14, display: 'grid', gap: 20 } }, children)
           : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
     }
 
