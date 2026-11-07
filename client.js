@@ -1783,6 +1783,7 @@ window.__ModuleLoader__.load({
           })()),
 
         // 纠错频率：独立卡片，14 天柱状图
+        h(Collapsible, { title: t('analyticsTitle') },
         (() => {
           const corrections = efficacy?.failures?.corrections ?? null;
           if (corrections === null || corrections.totalMessages === 0) return null;
@@ -1897,6 +1898,8 @@ window.__ModuleLoader__.load({
                     h('div', { className: 'lg-row-side' }, h(Chip, { kind: bucket.failureRate === null ? 'mute' : 'ok', children: bucket.failureRate === null ? '—' : pct(bucket.failureRate) })))))
               : null),
 
+        h(Collapsible, { title: t('sysTitle') },
+        ),
         h(Card, { title: t('gateTitle'), hint: t('liveEvolution') },
           gate === null
             ? h('div', { className: 'lg-status' }, '—')
@@ -1944,6 +1947,7 @@ window.__ModuleLoader__.load({
             Metric({ label: t('liveToolCalls'), value: int(live?.toolCalls ?? 0) }),
             Metric({ label: t('liveToolErrors'), value: int(live?.toolErrors ?? 0) }))),
 
+        ),
         // 记忆里最相关的几条教训
         h(Card, { title: t('liveLessons'), hint: int(derived?.lessons?.length ?? 0) },
           lessons.length === 0
@@ -2455,6 +2459,7 @@ window.__ModuleLoader__.load({
             })));
         })(),
 
+        h(Collapsible, { title: t('detailTitle') },
         h(Card, { title: t('liveLessons'), hint: int(lessons.length) },
           lessons.length === 0
             ? h(Empty, { icon: 'lesson', title: t('noLiveLessons') })
@@ -2518,7 +2523,9 @@ window.__ModuleLoader__.load({
                 }, t('retire')))));
           return h(Card, { title: t('liveSkills'), hint: int(skills.length) },
             skillItems.length === 0 ? h(Empty, { icon: 'spark', title: t('noLiveSkills') }) : h('div', null, skillItems));
-        })());
+        })(),
+        ),
+      );
     }
 
     /* ================================================================ 面板 */
