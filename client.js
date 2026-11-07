@@ -1227,7 +1227,7 @@ window.__ModuleLoader__.load({
           h('div', null,
             h('div', { className: 'lg-row-title' }, title),
             hint !== undefined ? h('div', { className: 'lg-row-meta' }, hint) : null),
-          h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸'))),
+          h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸')),
         open
           ? h('div', { style: { marginTop: 12, display: 'grid', gap: 12 } }, children)
           : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
