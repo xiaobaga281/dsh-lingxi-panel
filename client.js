@@ -237,6 +237,12 @@ window.__ModuleLoader__.load({
         repairPreview: '将修复 {t} 条错位正文、退役 {d} 条重复',
         repairHint: '确认后执行；修复与退役都会写入原因，可追溯。',
         repairDone: '已修复 {t} 条、退役 {d} 条',
+        storageTitle: '存储位置',
+        storageHint: '迁移会复制全部数据并校验，写入指针后重启生效；当前数据不动。',
+        storageCurrent: '当前：{dir}',
+        storageNew: '新目录',
+        storageMigrate: '迁移并切换',
+        storageDone: '已迁移到 {dir}，重启应用后生效',
         auditTitle: '体检记忆库',
         auditPass: '体检通过',
         auditFail: '体检发现问题',
@@ -612,6 +618,12 @@ window.__ModuleLoader__.load({
         repairPreview: 'will fix {t} misaligned texts, retire {d} duplicates',
         repairHint: 'Applies after confirmation; every change records a reason.',
         repairDone: 'fixed {t}, retired {d}',
+        storageTitle: 'Storage location',
+        storageHint: 'Migration copies all data with verification; takes effect after app restart. Current data is untouched.',
+        storageCurrent: 'current: {dir}',
+        storageNew: 'new dir',
+        storageMigrate: 'Migrate & switch',
+        storageDone: 'Migrated to {dir}; restart to apply',
         auditTitle: 'Audit store',
         auditPass: 'audit passed',
         auditFail: 'audit found problems',
@@ -2000,7 +2012,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair }) {
+    function MemoryTab({ t, memory, busy, context, injection, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
       const [query, setQuery] = React.useState(() => readUsage().lastSearch);
       const [result, setResult] = React.useState(null);
       const [loading, setLoading] = React.useState(false);
@@ -2008,6 +2020,7 @@ window.__ModuleLoader__.load({
       const [showAll, setShowAll] = React.useState(false);
       const [purgeStatus, setPurgeStatus] = React.useState('candidate');
       const [browseStatus, setBrowseStatus] = React.useState('active');
+      const [storageDir, setStorageDir] = React.useState('');
       const [purgeKind, setPurgeKind] = React.useState('');
       const [purgeDays, setPurgeDays] = React.useState('0');
       const [purgeQ, setPurgeQ] = React.useState('');
@@ -2194,6 +2207,11 @@ window.__ModuleLoader__.load({
                 busy === 'hygiene' ? '…' : t('hygieneRun')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
+        h(Card, { title: t('storageTitle'), hint: t('storageHint') },
+          h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
+          h('div', { className: 'lg-search' },
+            h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))));
         })(),
 
         h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
@@ -2606,6 +2624,29 @@ window.__ModuleLoader__.load({
         }
       });
 
+      const migrateStorage = () => run('migrate', async () => {
+        const dir = String(storageDir ?? '').trim();
+        if (dir === '') return t('storageNew') + '?';
+        const preview = await postJson('lingxi/memory/storage/migrate', { dir, dryRun: true });
+        setDetail({
+          title: t('storageTitle'),
+          subtitle: t('storageHint'),
+          confirm: true,
+          confirmHint: t('storageCurrent').replace('{dir}', data?.storage?.dir ?? ''),
+          confirmActions: [
+            {
+              label: t('storageMigrate'),
+              onClick: () => run('migrate:apply', async () => {
+                const body = await postJson('lingxi/memory/storage/migrate', { dir });
+                  setDetail(null);
+                  return body.ok === false ? String(body.error) : t('storageDone').replace('{dir}', body.report?.target ?? dir);
+                }),
+              },
+            ],
+          });
+        return t('storageTitle');
+      });
+
       const auditStore = () => run('audit', async () => {
         try {
           const body = await postJson('lingxi/diagnostics/audit', {});
@@ -2849,7 +2890,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, onDecide: decide, onPromote: promote, busy, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

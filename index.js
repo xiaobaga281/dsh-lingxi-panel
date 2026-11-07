@@ -5,7 +5,7 @@
  * 不读任何旧插件的数据目录。
  */
 import { spawn } from 'node:child_process';
-import { promises as fsp } from 'node:fs';
+import { readFileSync, promises as fsp } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,11 +54,22 @@ export function apply(ctx, config) {
     ...(config ?? {}),
   };
 
+  // 存储位置指针：固定路径（不随记忆目录迁移），面板可改，重启生效。
+  const storagePointerFile = path.join(homedir(), '.dsh', 'lingxi-storage.json');
+  const readStoragePointer = () => {
+    try {
+      const dir = String(JSON.parse(readFileSync(storagePointerFile, 'utf8')).dir ?? '').trim();
+      return dir === '' ? null : dir;
+    } catch {
+      return null;
+    }
+  };
   const memoryDir = settings.memoryDir !== ''
     ? settings.memoryDir
-    : (String(process.env.DSH_LINGXI_MEMORY_DIR ?? '').trim() !== ''
-        ? String(process.env.DSH_LINGXI_MEMORY_DIR).trim()
-        : path.join(homedir(), '.dsh', 'lingxi-memory'));
+    : (readStoragePointer()
+        ?? (String(process.env.DSH_LINGXI_MEMORY_DIR ?? '').trim() !== ''
+            ? String(process.env.DSH_LINGXI_MEMORY_DIR).trim()
+            : path.join(homedir(), '.dsh', 'lingxi-memory')));
   const metaFile = path.join(memoryDir, '.meta.json');
   const statusFile = path.join(memoryDir, 'injection-status.json');
   const qualityFile = path.join(memoryDir, 'quality.jsonl');
@@ -1092,6 +1103,7 @@ export function apply(ctx, config) {
         backfilledLessons,
         sectionSkipped,
         search: { ...searchStats },
+        storage: { dir: memoryDir, pointer: readStoragePointer() },
         selfcheck,
         audit: lastAudit,
         alerts,
@@ -1321,6 +1333,7 @@ export function apply(ctx, config) {
           derived,
           injection: { ...stats, autoSeeded, autoActivated },
           search: { ...searchStats },
+          storage: { dir: memoryDir, pointer: readStoragePointer() },
           samples: (injector.stats().samples ?? []).slice(-5).map((sample) => ({ sessionId: sample.sessionId, chars: sample.chars, records: sample.records, text: sample.text ?? sample.preview })),
           selfcheck,
           audit: lastAudit,
@@ -1598,6 +1611,58 @@ export function apply(ctx, config) {
           const report = await memory.deleteRecords(body?.ids ?? []);
           await writeStatus();
           sendJson(response, 200, { ok: true, report });
+        } catch (error) {
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
+        }
+      });
+
+      route(MEMORY + '/storage/migrate', async (request, response) => {
+        if (!allowPost(request, response)) return;
+        await ensureMemory();
+        const body = await readBody(request);
+        try {
+          const target = String(body?.dir ?? '').trim();
+          if (target === '') {
+            sendJson(response, 200, { ok: false, error: 'target dir required' });
+            return;
+          }
+          if (path.resolve(target) === path.resolve(memoryDir)) {
+            sendJson(response, 200, { ok: false, error: 'same as current dir' });
+            return;
+          }
+          await fsp.mkdir(target, { recursive: true });
+          // 验证可写
+          const probe = path.join(target, '.lingxi-probe');
+          await fsp.writeFile(probe, 'ok', 'utf8');
+          await fsp.rm(probe, { force: true });
+          // 复制数据文件
+          const files = ["memory.json", ".meta.json", "metrics.json", "quality.jsonl", "injection-status.json"];
+          const copied = [];
+          for (const name of files) {
+            const from = path.join(memoryDir, name);
+            try {
+              const content = await fsp.readFile(from);
+              await fsp.writeFile(path.join(target, name), content);
+              copied.push(name);
+            } catch {
+              // 该文件不存在就跳过
+            }
+          }
+          if (!copied.includes("memory.json")) {
+            sendJson(response, 200, { ok: false, error: 'memory.json missing in source' });
+            return;
+          }
+          // 校验：源与目标的 memory.json 逐字节一致
+          const srcSha = (await fsp.readFile(path.join(memoryDir, "memory.json"))).toString("base64");
+          const dstSha = (await fsp.readFile(path.join(target, "memory.json"))).toString("base64");
+          if (srcSha !== dstSha) {
+            sendJson(response, 200, { ok: false, error: 'copy verification failed' });
+            return;
+          }
+          // 写指针（重启后生效）
+          await fsp.writeFile(storagePointerFile, JSON.stringify({ dir: path.resolve(target), setAt: Date.now() }, null, 2), 'utf8');
+          await writeStatus();
+          sendJson(response, 200, { ok: true, report: { copied, target: path.resolve(target), restartRequired: true } });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
