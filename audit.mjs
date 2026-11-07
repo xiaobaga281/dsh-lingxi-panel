@@ -72,7 +72,8 @@ try {
   const status = JSON.parse(await fsp.readFile(path.join(dir, 'injection-status.json'), 'utf8'));
   // 只比较"最近一个注入块"：status.chars 是各会话之和，拿来比预算会误报。
   const chars = Number(status?.lastChars ?? 0);
-  const budget = Number(status?.charBudget ?? 0);
+  // 优先用注入器记录的"本次实际场景预算"；全局 charBudget 只是默认值。
+  const budget = Number(status?.lastBudget ?? status?.charBudget ?? 0);
   if (budget > 0 && chars > budget) {
     problems.push({ check: '注入块超预算', detail: String(chars) + ' > ' + String(budget) });
   }

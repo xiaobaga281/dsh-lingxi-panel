@@ -246,6 +246,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
     refreshed: 0,
     lastAt: 0,
     lastChars: 0,
+    lastBudget: 0,
     errors: 0,
   };
 
@@ -361,6 +362,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         stats.refreshed += 1;
         stats.lastAt = entry.at;
         stats.lastChars = block.length;
+        stats.lastBudget = budgetFor(dominantScene(sessionId));
         if (block !== '') stats.injected += 1;
         ensureSession(sessionId).injectedChars = block.length;
         ensureSession(sessionId).records = result.items.length;
