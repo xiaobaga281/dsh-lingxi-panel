@@ -1581,23 +1581,14 @@ window.__ModuleLoader__.load({
     }
 
     /** 页签顺序：用过的按次数降序，没用过的保持原序跟在后面。 */
-    function orderTabs(tabs, usage) {
-      const score = (id) => Number(usage?.tabs?.[id] ?? 0);
-      const used = tabs.filter((tab) => score(tab.id) > 0);
-      const unused = tabs.filter((tab) => score(tab.id) <= 0);
-      used.sort((a, b) => score(b.id) - score(a.id));
-      return [...used, ...unused];
+    function orderTabs(tabs) {
+      // 固定顺序：概览永远第一位。按使用频率重排会让面板"开在一个意外的页签"。
+      return tabs;
     }
 
-    /** 默认页签：上次停留的优先，其次最常用的，最后概览。 */
-    function initialTab(tabs, usage) {
-      if (usage.lastTab !== null && tabs.some((tab) => tab.id === usage.lastTab)) return usage.lastTab;
-      const used = tabs.filter((tab) => Number(usage.tabs?.[tab.id] ?? 0) > 0);
-      if (used.length > 0) {
-        used.sort((a, b) => Number(usage.tabs[b.id]) - Number(usage.tabs[a.id]));
-        return used[0].id;
-      }
-      return 'overview';
+    /** 默认页签：固定概览。 */
+    function initialTab(tabs) {
+      return tabs.some((tab) => tab.id === 'overview') ? 'overview' : tabs[0]?.id ?? 'overview';
     }
 
     /* ================================================================ 数据 */
@@ -2526,14 +2517,11 @@ window.__ModuleLoader__.load({
       const usageRef = React.useRef(null);
       if (usageRef.current === null) usageRef.current = readUsage();
       const usage = usageRef.current;
-      const [tab, setTab] = React.useState(initialTab(
-        [
-          { id: 'overview' },
-          { id: 'memory' },
-          { id: 'evolution' },
-        ],
-        usage,
-      ));
+      const [tab, setTab] = React.useState(initialTab([
+        { id: 'overview' },
+        { id: 'memory' },
+        { id: 'evolution' },
+      ]));
       const chooseTab = (next) => {
         const tabs = { ...readUsage().tabs, [next]: Number(readUsage().tabs?.[next] ?? 0) + 1 };
         writeUsage({ tabs, lastTab: next });
@@ -2940,14 +2928,11 @@ window.__ModuleLoader__.load({
 
           h(Segmented, {
             value: tab,
-            options: orderTabs(
-              [
-                { id: 'overview', label: t('tabOverview') },
-                { id: 'memory', label: t('tabMemory'), count: memory?.pendingTotal ?? 0 },
-                { id: 'evolution', label: t('tabEvolution'), count: derived?.lessons?.length ?? 0 },
-              ],
-              usage,
-            ),
+            options: orderTabs([
+              { id: 'overview', label: t('tabOverview') },
+              { id: 'memory', label: t('tabMemory'), count: memory?.pendingTotal ?? 0 },
+              { id: 'evolution', label: t('tabEvolution'), count: derived?.lessons?.length ?? 0 },
+            ]),
             onChange: chooseTab,
           }),
 
