@@ -2141,103 +2141,104 @@ window.__ModuleLoader__.load({
                     h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(record.id, 'retire') }, t('retire')))))),
 
         h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
-                  h(Card, { title: t('purgeTitle'), hint: t('purgeHint') },
-            h('div', { className: 'lg-form' },
-              h('div', { className: 'lg-field' },
-                h('span', { className: 'lg-field-label' }, t('purgeStatus')),
-                h(Select, {
-                  value: purgeStatus,
-                  options: [
-                    { value: '', label: t('purgeAll') },
-                    { value: 'candidate', label: t('statusCandidate') },
-                    { value: 'active', label: t('statusActive') },
-                    { value: 'retired', label: t('statusRetired') },
-                  ],
-                  onChange: (next) => { setPurgeStatus(next); setPurgeArmed(false); },
-                  ariaLabel: t('purgeStatus'),
-                })),
-              h('div', { className: 'lg-field' },
-                h('span', { className: 'lg-field-label' }, t('purgeKind')),
-                h(Select, {
-                  value: purgeKind,
-                  options: [
-                    { value: '', label: t('purgeAll') },
-                    { value: 'constraint', label: t(KIND_LABEL.constraint) },
-                    { value: 'preference', label: t(KIND_LABEL.preference) },
-                    { value: 'fact', label: t(KIND_LABEL.fact) },
-                    { value: 'lesson', label: t(KIND_LABEL.lesson) },
-                    { value: 'skill', label: t(KIND_LABEL.skill) },
-                  ],
-                  onChange: (next) => { setPurgeKind(next); setPurgeArmed(false); },
-                  ariaLabel: t('purgeKind'),
-                })),
-              h('div', { className: 'lg-field' },
-                h('span', { className: 'lg-field-label' }, t('purgeDays')),
-                h('input', { className: 'lg-input', type: 'number', min: 0, inputMode: 'numeric', value: purgeDays, onChange: (event) => { setPurgeDays(event.target.value); setPurgeArmed(false); } })),
-              h('div', { className: 'lg-field' },
-                h('span', { className: 'lg-field-label' }, t('purgeQ')),
-                h('input', { className: 'lg-input', type: 'text', placeholder: '…', value: purgeQ, onChange: (event) => { setPurgeQ(event.target.value); setPurgeArmed(false); } }))),
-            h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPurge(purgeFilter(), true) }, t('purgePreview')),
-              h('button', {
-                type: 'button',
-                className: 'lg-btn',
-                disabled: busy !== '',
-                onClick: () => {
-                  if (!purgeArmed) { setPurgeArmed(true); return; }
-                  setPurgeArmed(false);
-                  onPurge(purgeFilter(), false);
+        h(Card, { title: t('purgeTitle'), hint: t('purgeHint') },
+          h('div', { className: 'lg-form' },
+            h('div', { className: 'lg-field' },
+              h('span', { className: 'lg-field-label' }, t('purgeStatus')),
+              h(Select, {
+                value: purgeStatus,
+                options: [
+                  { value: '', label: t('purgeAll') },
+                  { value: 'candidate', label: t('statusCandidate') },
+                  { value: 'active', label: t('statusActive') },
+                  { value: 'retired', label: t('statusRetired') },
+                ],
+                onChange: (next) => { setPurgeStatus(next); setPurgeArmed(false); },
+                ariaLabel: t('purgeStatus'),
+              })),
+            h('div', { className: 'lg-field' },
+              h('span', { className: 'lg-field-label' }, t('purgeKind')),
+              h(Select, {
+                value: purgeKind,
+                options: [
+                  { value: '', label: t('purgeAll') },
+                  { value: 'constraint', label: t(KIND_LABEL.constraint) },
+                  { value: 'preference', label: t(KIND_LABEL.preference) },
+                  { value: 'fact', label: t(KIND_LABEL.fact) },
+                  { value: 'lesson', label: t(KIND_LABEL.lesson) },
+                  { value: 'skill', label: t(KIND_LABEL.skill) },
+                ],
+                onChange: (next) => { setPurgeKind(next); setPurgeArmed(false); },
+                ariaLabel: t('purgeKind'),
+              })),
+            h('div', { className: 'lg-field' },
+              h('span', { className: 'lg-field-label' }, t('purgeDays')),
+              h('input', { className: 'lg-input', type: 'number', min: 0, inputMode: 'numeric', value: purgeDays, onChange: (event) => { setPurgeDays(event.target.value); setPurgeArmed(false); } })),
+            h('div', { className: 'lg-field' },
+              h('span', { className: 'lg-field-label' }, t('purgeQ')),
+              h('input', { className: 'lg-input', type: 'text', placeholder: '…', value: purgeQ, onChange: (event) => { setPurgeQ(event.target.value); setPurgeArmed(false); } }))),
+          h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPurge(purgeFilter(), true) }, t('purgePreview')),
+            h('button', {
+              type: 'button',
+              className: 'lg-btn',
+              disabled: busy !== '',
+              onClick: () => {
+                if (!purgeArmed) { setPurgeArmed(true); return; }
+                setPurgeArmed(false);
+                onPurge(purgeFilter(), false);
+              },
+            }, purgeArmed ? t('purgeArmed') : t('purgeRun')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onExport() }, t('exportTitle')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSelfcheck() }, t('selfcheckTitle')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onAudit() }, t('auditTitle')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onRepair() }, t('repairTitle')),
+            h('label', { className: 'lg-btn lg-btn-ghost', style: { cursor: 'pointer' } },
+              t('importTitle'),
+              h('input', {
+                type: 'file',
+                accept: 'application/json',
+                style: { display: 'none' },
+                onChange: (event) => {
+                  const file = event.target.files?.[0];
+                  if (file === undefined) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    try {
+                      onImport(JSON.parse(String(reader.result ?? '{}')));
+                    } catch (error) {
+                      onImportError(error instanceof Error ? error.message : String(error));
+                    }
+                  };
+                  reader.readAsText(file);
+                  event.target.value = '';
                 },
-              }, purgeArmed ? t('purgeArmed') : t('purgeRun')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onExport() }, t('exportTitle')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSelfcheck() }, t('selfcheckTitle')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onAudit() }, t('auditTitle')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onRepair() }, t('repairTitle')),
-              h('label', { className: 'lg-btn lg-btn-ghost', style: { cursor: 'pointer' } },
-                t('importTitle'),
-                h('input', {
-                  type: 'file',
-                  accept: 'application/json',
-                  style: { display: 'none' },
-                  onChange: (event) => {
-                    const file = event.target.files?.[0];
-                    if (file === undefined) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      try {
-                        onImport(JSON.parse(String(reader.result ?? '{}')));
-                      } catch (error) {
-                        onImportError(error instanceof Error ? error.message : String(error));
-                      }
-                    };
-                    reader.readAsText(file);
-                    event.target.value = '';
-                  },
-                })))),
-  
-          (() => {
-            const hygiene = memory?.hygiene ?? null;
-            return h(Card, { title: t('hygieneTitle'), hint: t('hygieneHint') },
-              hygiene === null
-                ? h('div', { className: 'lg-status' }, '—')
-                : h('div', { className: 'lg-metric-row' },
-                    Metric({ label: t('hygieneScan'), value: int(hygiene.scanned ?? 0) }),
-                    Metric({ label: t('hygieneQuarantined'), value: int(hygiene.quarantined ?? 0) }),
-                    Metric({ label: t('hygieneEvicted'), value: int(hygiene.evicted ?? 0) }),
-                    Metric({ label: t('hygieneMerged'), value: int(hygiene.merged ?? 0) }),
-                    Metric({ label: t('hygieneUpgraded'), value: int(hygiene.upgraded ?? 0) })),
-              h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
-                h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onHygiene },
-                  busy === 'hygiene' ? '…' : t('hygieneRun')),
-                h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
-                h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
-          })(),
-          h(Card, { title: t('storageTitle'), hint: t('storageHint') },
-            h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
-            h('div', { className: 'lg-search' },
-              h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))),
+              })))),
+
+        (() => {
+          const hygiene = memory?.hygiene ?? null;
+          return h(Card, { title: t('hygieneTitle'), hint: t('hygieneHint') },
+            hygiene === null
+              ? h('div', { className: 'lg-status' }, '—')
+              : h('div', { className: 'lg-metric-row' },
+                  Metric({ label: t('hygieneScan'), value: int(hygiene.scanned ?? 0) }),
+                  Metric({ label: t('hygieneQuarantined'), value: int(hygiene.quarantined ?? 0) }),
+                  Metric({ label: t('hygieneEvicted'), value: int(hygiene.evicted ?? 0) }),
+                  Metric({ label: t('hygieneMerged'), value: int(hygiene.merged ?? 0) }),
+                  Metric({ label: t('hygieneUpgraded'), value: int(hygiene.upgraded ?? 0) })),
+            h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onHygiene },
+                busy === 'hygiene' ? '…' : t('hygieneRun')),
+              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
+              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
+        h(Card, { title: t('storageTitle'), hint: t('storageHint') },
+          h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
+          h('div', { className: 'lg-search' },
+            h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))));
+        })(),
         ),
+
         h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
           h('div', { className: 'lg-field', style: { minWidth: 150 } },
             h(Select, {
