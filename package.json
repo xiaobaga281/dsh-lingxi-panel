@@ -1,6 +1,6 @@
 {
   "name": "dsh-lingxi-panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "灵犀",
   "description": "灵犀工作台：闸门、环境事实、技能提名、进化疗效与记忆库合成一个原生面板，明暗主题跟随应用。",
   "type": "module",
