@@ -571,5 +571,28 @@ await check('按错误码统计采纳：样本够 3 才汇总', async () => {
   assert.equal(summary.FS_NOT_FOUND.ignored, 3);
   assert.equal(summary.FS_NOT_FOUND.rate, 0);
 });
+
+await check('升级阶梯：建议无视且同码再犯 → 同工具下次调用被硬拦，改用期望工具解除', async () => {
+  const memory = fakeMemory({ text: '', items: [] });
+  memory.findByTopic = async () => [];
+  const injector = createInjector({ memory, listWorkspace: async () => 'ws-1' });
+  const fail = { isError: true, error: { info: { code: 'FS_NOT_FOUND' }, message: '不存在' } };
+  // 第 1 次失败 → 同轮提示
+  await injector.onToolResult({ name: 'read', agent: { id: 's1' }, arguments: { path: 'a' } }, fail);
+  // 宿主在失败后请求同轮提示（设置 pendingAdvice）
+  await injector.warningFor({ name: 'read', agent: { id: 's1' } }, fail);
+  // 模型无视建议，改调 edit（仍失败同码）→ 记入升级
+  await injector.onToolResult({ name: 'edit', agent: { id: 's1' }, arguments: { path: 'a' } }, fail);
+  assert.equal(injector.stats().adviceIgnored, 1);
+  // 同工具（edit）下一次调用被硬拦
+  const denied = injector.guardCall({ name: 'edit', agent: { id: 's1' }, arguments: { path: 'a' } });
+  assert.ok(typeof denied === 'string' && denied.includes('期望用'), String(denied));
+  // 改用期望工具 glob → 解除
+  await injector.onToolResult({ name: 'glob', agent: { id: 's1' } }, { isError: false });
+  const after = injector.guardCall({ name: 'edit', agent: { id: 's1' }, arguments: { path: 'a' } });
+  // 升级已解除；残余拦截只可能是签名守卫（同码失败仍在窗口内），不再是"期望用"升级拦
+  assert.ok(after === undefined || !String(after).includes('期望用'), 'escalation cleared: ' + String(after));
+  assert.equal(injector.stats().adviceAdopted, 1);
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

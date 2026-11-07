@@ -146,6 +146,8 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   const needsReadBeforeWrite = new Map();
   /** sessionId → 刚刚给出的建议（错误码 + 期望工具），用于衡量是否被采纳 */
   const pendingAdvice = new Map();
+  /** sessionId\u0000tool → { code, expected, at }：建议被无视后的升级状态 */
+  const escalated = new Map();
   /** code → { adopted, ignored }：哪类提示真正改变了动作 */
   const adviceByCode = new Map();
 
@@ -163,6 +165,18 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   function guardCall(exec) {
     stats.guardChecked += 1;
     if (!enabled) return undefined;
+    // 升级硬拦：建议被无视且同码再犯后，同工具的下一次调用先拦下来讲清期望动作。
+    const escKey = String(exec?.agent?.id ?? '') + '\u0000' + String(exec?.name ?? '');
+    const esc = escalated.get(escKey);
+    if (esc !== undefined) {
+      if (Date.now() - esc.at > GUARD_WINDOW_MS) {
+        escalated.delete(escKey);
+      } else {
+        stats.guardDenied += 1;
+        return '刚刚已经提示过（' + esc.code + '），但动作没有改变。这次先做提示里的事：期望用 ' +
+          esc.expected.join(' / ') + '，之后再继续其他操作。';
+      }
+    }
 
     // 序列守卫：写文件因"版本过期/未读过"失败后，必须先 read 同一个路径。
     const toolName = String(exec?.name ?? '');
@@ -176,8 +190,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         return '这次写入之前要先 read「' + pendingPath + '」：上一次写入因内容过期/未读被拒，直接重试不会成功。';
       }
     }
-    stats.guardChecked += 1;
-    if (!enabled) return undefined;
+
     const signature = callSignature(exec);
     const failure = recentFailures.get(signature);
     if (failure === undefined) return undefined;
@@ -446,12 +459,19 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
       pendingAdvice.delete(sessionId);
       if (Array.isArray(advice.expected) && advice.expected.length > 0) {
         const bucket = adviceByCode.get(advice.code) ?? { adopted: 0, ignored: 0 };
-        if (advice.expected.includes(toolNameNow)) {
+        // 采纳 = 换到期望工具，且不是在重试刚才失败的那个工具本身。
+        const adopted = advice.expected.includes(toolNameNow) && toolNameNow !== advice.failedTool;
+        if (adopted) {
           stats.adviceAdopted += 1;
           bucket.adopted += 1;
+          escalated.delete(sessionId + '\u0000' + toolNameNow);
         } else {
           stats.adviceIgnored += 1;
           bucket.ignored += 1;
+          // 升级阶梯：无视建议后若这次调用仍是同码失败，下次同工具调用直接硬拦。
+          if (result?.isError === true && String(result?.error?.info?.code ?? '') === advice.code) {
+          escalated.set(sessionId + '\u0000' + toolNameNow, { code: advice.code, expected: advice.expected, at: Date.now() });
+          }
         }
         adviceByCode.set(advice.code, bucket);
       }
@@ -502,6 +522,15 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
       }
       return;
     }
+    // 成功且用的是升级里期望的工具 → 解除升级 + 记"迟来采纳"（建议最终起了作用）。
+    for (const [escKey, esc] of [...escalated.entries()]) {
+      if (!escKey.startsWith(sessionId + '\u0000')) continue;
+      if (Array.isArray(esc.expected) && esc.expected.includes(toolNameNow)) {
+        escalated.delete(escKey);
+        stats.adviceAdopted += 1;
+      }
+    }
+
     // 工具成功且提示之后没有再犯同一失败 → 提示判定为有效。
     for (const [key, pending] of [...warnedPending.entries()]) {
       if (pending.sessionId !== sessionId) continue;
@@ -704,14 +733,14 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
       if (remedyIsSpecific(code)) {
         warnedKeys.add(key);
         stats.warned += 1;
-        pendingAdvice.set(sessionId, { code, expected: expectedToolsFor(code), at: Date.now() });
+        pendingAdvice.set(sessionId, { code, expected: expectedToolsFor(code), failedTool: String(exec?.name ?? ''), at: Date.now() });
         return { text: '【灵犀提示】' + remedyActionFor(code) + '；先核对前置条件再重试。' };
       }
       return null;
     }
     warnedKeys.add(key);
     stats.warned += 1;
-    pendingAdvice.set(sessionId, { code, expected: expectedToolsFor(code), at: Date.now() });
+    pendingAdvice.set(sessionId, { code, expected: expectedToolsFor(code), failedTool: String(exec?.name ?? ''), at: Date.now() });
     warnedPending.set(key, { sessionId, ids: picked.map((record) => record.id), at: Date.now() });
     if (warnedPending.size > 50) {
       const oldest = [...warnedPending.entries()].sort((a, b) => a[1].at - b[1].at)[0];
