@@ -237,6 +237,11 @@ window.__ModuleLoader__.load({
         repairPreview: '将修复 {t} 条错位正文、退役 {d} 条重复',
         repairHint: '确认后执行；修复与退役都会写入原因，可追溯。',
         repairDone: '已修复 {t} 条、退役 {d} 条',
+        analyticsTitle: '学习分析（纠错 / 疗效 / 进化 / 质量分档）',
+        sysTitle: '系统状态（回归 / 闸门 / 实时）',
+        detailTitle: '记忆明细（教训 / 事实 / 技能）',
+        opsTitle: '运维工具（清洗 / 卫生 / 体检 / 存储）',
+        opsHint: '低频操作收在这里；日常只需要上面的检索、浏览与待确认。',
         storageTitle: '存储位置',
         storageHint: '迁移会复制全部数据并校验，写入指针后重启生效；当前数据不动。',
         storageCurrent: '当前：{dir}',
@@ -618,6 +623,11 @@ window.__ModuleLoader__.load({
         repairPreview: 'will fix {t} misaligned texts, retire {d} duplicates',
         repairHint: 'Applies after confirmation; every change records a reason.',
         repairDone: 'fixed {t}, retired {d}',
+        analyticsTitle: 'Learning analytics (corrections / efficacy / evolution / quality)',
+        sysTitle: 'System status (regression / gate / live)',
+        detailTitle: 'Memory details (lessons / facts / skills)',
+        opsTitle: 'Ops tools (cleanup / hygiene / audit / storage)',
+        opsHint: 'Low-frequency tools live here; daily work needs only search, browse and pending above.',
         storageTitle: 'Storage location',
         storageHint: 'Migration copies all data with verification; takes effect after app restart. Current data is untouched.',
         storageCurrent: 'current: {dir}',
@@ -1202,6 +1212,25 @@ window.__ModuleLoader__.load({
           }, h('title', null, point.day + ' · ' + value + ' 次'));
         }),
       );
+    }
+
+    /** 折叠区：低频内容默认收起，避免页面信息过载。 */
+    function Collapsible({ title, hint, children, defaultOpen = false }) {
+      const [open, setOpen] = React.useState(defaultOpen);
+      return h('div', { className: 'lg-card' },
+        h('button', {
+          type: 'button',
+          style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit', textAlign: 'left' },
+          onClick: () => setOpen(!open),
+          'aria-expanded': open,
+        },
+          h('div', null,
+            h('div', { className: 'lg-row-title' }, title),
+            hint !== undefined ? h('div', { className: 'lg-row-meta' }, hint) : null),
+          h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸'))),
+        open
+          ? h('div', { style: { marginTop: 12, display: 'grid', gap: 12 } }, children)
+          : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
     }
 
     function Select({ value, options, onChange, ariaLabel }) {
