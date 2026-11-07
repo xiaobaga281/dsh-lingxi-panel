@@ -237,8 +237,6 @@ window.__ModuleLoader__.load({
         repairPreview: '将修复 {t} 条错位正文、退役 {d} 条重复',
         repairHint: '确认后执行；修复与退役都会写入原因，可追溯。',
         repairDone: '已修复 {t} 条、退役 {d} 条',
-        opsTitle: '运维工具（清洗 / 卫生 / 体检 / 存储）',
-        opsHint: '低频操作收在这里；日常只需要上面的检索、浏览与待确认。',
         storageTitle: '存储位置',
         storageHint: '迁移会复制全部数据并校验，写入指针后重启生效；当前数据不动。',
         storageCurrent: '当前：{dir}',
@@ -620,8 +618,6 @@ window.__ModuleLoader__.load({
         repairPreview: 'will fix {t} misaligned texts, retire {d} duplicates',
         repairHint: 'Applies after confirmation; every change records a reason.',
         repairDone: 'fixed {t}, retired {d}',
-        opsTitle: 'Ops tools (cleanup / hygiene / audit / storage)',
-        opsHint: 'Low-frequency tools live here; daily work needs only search, browse and pending above.',
         storageTitle: 'Storage location',
         storageHint: 'Migration copies all data with verification; takes effect after app restart. Current data is untouched.',
         storageCurrent: 'current: {dir}',
@@ -1206,25 +1202,6 @@ window.__ModuleLoader__.load({
           }, h('title', null, point.day + ' · ' + value + ' 次'));
         }),
       );
-    }
-
-    /** 折叠区：运维类工具默认收起，避免页面信息过载。 */
-    function Collapsible({ title, hint, children, defaultOpen = false }) {
-      const [open, setOpen] = React.useState(defaultOpen);
-      return h('div', { className: 'lg-card' },
-        h('button', {
-          type: 'button',
-          style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit', textAlign: 'left' },
-          onClick: () => setOpen(!open),
-          'aria-expanded': open,
-        },
-          h('div', null,
-            h('div', { className: 'lg-row-title' }, title),
-            hint !== undefined ? h('div', { className: 'lg-row-meta' }, hint) : null),
-          h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸')),
-        open
-          ? h('div', { style: { marginTop: 12, display: 'grid', gap: 12 } }, children)
-          : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
     }
 
     function Select({ value, options, onChange, ariaLabel }) {
@@ -2140,7 +2117,6 @@ window.__ModuleLoader__.load({
                     h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onDecide(record.id, 'accept') }, t('accept')),
                     h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(record.id, 'retire') }, t('retire')))))),
 
-        h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
         h(Card, { title: t('purgeTitle'), hint: t('purgeHint') },
           h('div', { className: 'lg-form' },
             h('div', { className: 'lg-field' },
@@ -2231,13 +2207,12 @@ window.__ModuleLoader__.load({
                 busy === 'hygiene' ? '…' : t('hygieneRun')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
-          })(),
-          h(Card, { title: t('storageTitle'), hint: t('storageHint') },
+        h(Card, { title: t('storageTitle'), hint: t('storageHint') },
           h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
           h('div', { className: 'lg-search' },
             h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate')))),
-        ),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))));
+        })(),
 
         h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
           h('div', { className: 'lg-field', style: { minWidth: 150 } },
