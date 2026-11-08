@@ -1229,7 +1229,7 @@ window.__ModuleLoader__.load({
             hint !== undefined ? h('div', { className: 'lg-row-meta' }, hint) : null),
           h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, open ? '▾' : '▸')),
         open
-          ? h('div', { style: { marginTop: 14, display: 'grid', gap: 20 } }, children)
+          ? h('div', { style: { marginTop: 14, display: 'grid', gap: 28 } }, children)
           : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
     }
 
@@ -2150,6 +2150,7 @@ window.__ModuleLoader__.load({
                     h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onDecide(record.id, 'accept') }, t('accept')),
                     h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(record.id, 'retire') }, t('retire')))))),
 
+        h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
         h(Card, { title: t('purgeTitle'), hint: t('purgeHint') },
           h('div', { className: 'lg-form' },
             h('div', { className: 'lg-field' },
@@ -2240,12 +2241,13 @@ window.__ModuleLoader__.load({
                 busy === 'hygiene' ? '…' : t('hygieneRun')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
               h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
+        })(),
         h(Card, { title: t('storageTitle'), hint: t('storageHint') },
           h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
           h('div', { className: 'lg-search' },
             h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate'))));
-        })(),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate')))),
+        ),
 
         h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
           h('div', { className: 'lg-field', style: { minWidth: 150 } },
