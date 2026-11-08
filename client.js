@@ -242,6 +242,9 @@ window.__ModuleLoader__.load({
         detailTitle: '记忆明细（教训 / 事实 / 技能）',
         opsTitle: '运维工具（清洗 / 卫生 / 体检 / 存储）',
         opsHint: '低频操作收在这里；日常只需要上面的检索、浏览与待确认。',
+        browseRefresh: '刷新',
+        browseEmpty: '该状态下没有记忆。',
+        browseCount: '{n} 条',
         storageTitle: '存储位置',
         storageHint: '迁移会复制全部数据并校验，写入指针后重启生效；当前数据不动。',
         storageCurrent: '当前：{dir}',
@@ -628,6 +631,9 @@ window.__ModuleLoader__.load({
         detailTitle: 'Memory details (lessons / facts / skills)',
         opsTitle: 'Ops tools (cleanup / hygiene / audit / storage)',
         opsHint: 'Low-frequency tools live here; daily work needs only search, browse and pending above.',
+        browseRefresh: 'Refresh',
+        browseEmpty: 'No records in this status.',
+        browseCount: '{n} records',
         storageTitle: 'Storage location',
         storageHint: 'Migration copies all data with verification; takes effect after app restart. Current data is untouched.',
         storageCurrent: 'current: {dir}',
@@ -1231,6 +1237,42 @@ window.__ModuleLoader__.load({
         open
           ? h('div', { style: { marginTop: 14, display: 'grid', gap: 28 } }, children)
           : h('div', { className: 'lg-row-meta', style: { marginTop: 6 } }, '展开使用'));
+    }
+
+    /** 浏览记忆：状态下拉 + 内联记录列表，行级删除。 */
+    function BrowseCard({ t, busy, status, setStatus, items, loading, onDelete, onRefresh }) {
+      const rows = (items ?? []).map((record) =>
+        h('div', { className: 'lg-row', key: record.id },
+          h('div', { className: 'lg-row-main' },
+            h('div', { className: 'lg-row-title' }, record.text),
+            h('div', { className: 'lg-row-meta' },
+              h(Chip, { kind: 'accent', children: t(KIND_LABEL[record.kind] ?? 'kindFact') }),
+              h(Chip, { children: record.status ?? '' }),
+              h(Chip, { kind: 'mute', children: record.sharing ?? 'private' }))),
+          h('div', { className: 'lg-row-side' },
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDelete(record.id) }, t('deleteOne')))));
+      return h(Card, { title: t('browseTitle'), hint: t('browseHint') },
+        h('div', { className: 'lg-search' },
+          h('div', { className: 'lg-field', style: { minWidth: 150 } },
+            h(Select, {
+              value: status,
+              options: [
+                { value: '', label: t('browseStatusAll') },
+                { value: 'active', label: t('statusActive') },
+                { value: 'candidate', label: t('statusCandidate') },
+                { value: 'retired', label: t('statusRetired') },
+              ],
+              onChange: (next) => setStatus(next),
+              ariaLabel: t('browseTitle'),
+            })),
+          h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onRefresh }, t('browseRefresh'))),
+        items === null
+          ? h('div', { className: 'lg-status' }, '…')
+          : rows.length === 0
+            ? h('div', { className: 'lg-status' }, t('browseEmpty'))
+            : h('div', null,
+              h('div', { className: 'lg-row-meta', style: { marginBottom: 6 } }, t('browseCount').replace('{n}', int(rows.length))),
+              rows));
     }
 
     function Select({ value, options, onChange, ariaLabel }) {
@@ -2053,6 +2095,21 @@ window.__ModuleLoader__.load({
       const [showAll, setShowAll] = React.useState(false);
       const [purgeStatus, setPurgeStatus] = React.useState('candidate');
       const [browseStatus, setBrowseStatus] = React.useState('active');
+      const [browseList, setBrowseList] = React.useState(null);
+
+      const loadBrowse = React.useCallback(async (status) => {
+        const query = (status ?? '') === '' ? '?limit=8' : '?status=' + encodeURIComponent(status) + '&limit=8';
+        try {
+          const body = await requestJson('lingxi/memory/list' + query);
+          setBrowseList(body.items ?? []);
+        } catch {
+          setBrowseList([]);
+        }
+      }, []);
+
+      React.useEffect(() => {
+        loadBrowse(browseStatus);
+      }, [browseStatus, loadBrowse]);
       const [storageDir, setStorageDir] = React.useState('');
       const [purgeKind, setPurgeKind] = React.useState('');
       const [purgeDays, setPurgeDays] = React.useState('0');
@@ -2264,8 +2321,7 @@ window.__ModuleLoader__.load({
             })),
           h('button', { type: 'button', className: 'lg-btn', onClick: () => onDetail(t('browseTitle'), { status: browseStatus, limit: 100 }) }, t('detailOpen'))),
 
-        h(Card, { title: t('browseTitle'), hint: t('browseHint') },
-          h('div', { className: 'lg-card-hint' }, t('browseHint'))),
+        h(BrowseCard, { t, busy, status: browseStatus, setStatus: setBrowseStatus, items: browseList, onDelete: onDeleteOne, onRefresh: () => loadBrowse(browseStatus) }),
 
         h(Card, { title: t('pendingQueue'), hint: (memory?.pendingHidden ?? 0) > 0 ? t('pendingHint') + ' ' + t('pendingHiddenHint').replace('{n}', int(memory.pendingHidden)) : t('pendingHint') },
           queuePending.length === 0
