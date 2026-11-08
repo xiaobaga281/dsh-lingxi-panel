@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LingxiMemory } from './memory/index.js';
 import { canonicalFailure, createInjector, userMessageText } from './injector.js';
+import { createSemantic } from './semantic.js';
 import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures } from './metrics.js';
 import { annotate } from './noise.js';
 import { mayInject } from './memory/schema.js';
@@ -46,6 +47,7 @@ export function apply(ctx, config) {
     autoSeed: true,
     autoSeedThreshold: 10,
     procedureSessions: 2,
+    semantic: false,
     // 启发式抽规则默认关闭：用户已明确它是"太片面"的方案，只留模型主动写入。
     instructions: false,
     evolve: true,
@@ -76,7 +78,8 @@ export function apply(ctx, config) {
 
   const memory = new LingxiMemory({ dir: memoryDir });
   const metrics = new MetricsFile(memoryDir);
-  const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {} });
+  const semantic = createSemantic({ ctx, settingsRef: () => settings });
+  const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
   const evolver = createEvolver();
   /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
   const sceneEvolvers = {
@@ -190,7 +193,10 @@ export function apply(ctx, config) {
         .catch(() => {});
       // 恢复采纳覆盖表：自学习得出的期望工具修正，重启不丢。
       readMeta()
-        .then((metaBoot) => applyAdoptionOverrides(metaBoot?.adoptionOverrides ?? {}))
+        .then((metaBoot) => {
+        applyAdoptionOverrides(metaBoot?.adoptionOverrides ?? {});
+        if (metaBoot?.semantic !== undefined) settings.semantic = metaBoot.semantic === true;
+      })
         .catch(() => {});
     }, 0);
     return memory;

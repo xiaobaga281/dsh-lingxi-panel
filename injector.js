@@ -35,7 +35,7 @@ export function canonicalFailure(text) {
   return value.slice(0, 80);
 }
 
-export function createInjector({ memory, listWorkspace, now = () => Date.now(), config = {} }) {
+export function createInjector({ memory, listWorkspace, now = () => Date.now(), config = {}, semantic = null }) {
   let enabled = config.enabled !== false;
   let charBudget = Number.isFinite(config.charBudget) ? config.charBudget : 700;
   let captureThreshold = Number.isFinite(config.captureThreshold) ? config.captureThreshold : 2;
@@ -344,7 +344,17 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
           }
         }
         // (b) 再按本轮输入做词法召回，补进没覆盖到的。
-        const result = await memory.recall(query, { context, limit: 8, charBudget });
+        // 语义扩展（best-effort）：用已配置模型给查询补同义关键词，失败即原样。
+        let effectiveQuery = query;
+        try {
+          if (semantic !== null && typeof semantic.expandQuery === 'function') {
+            const expanded = await semantic.expandQuery(query);
+            if (expanded !== '') effectiveQuery = query + ' ' + expanded;
+          }
+        } catch {
+          // 语义扩展失败不影响词法路径
+        }
+        const result = await memory.recall(effectiveQuery, { context, limit: 8, charBudget });
         for (const item of result.items) {
           if (seen.has(item.record.id)) continue;
           seen.add(item.record.id);
@@ -613,6 +623,14 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
     const workspaceId = await resolveWorkspace(sessionId);
     const detail = code !== '' ? code : head;
     const text = lessonTextFor({ tool, code, detail });
+    let semanticTopics = [];
+    try {
+      if (semantic !== null && typeof semantic.keywordsFor === 'function') {
+        semanticTopics = (await semantic.keywordsFor(text)).map((keyword) => `sem:${keyword}`);
+      }
+    } catch {
+      semanticTopics = [];
+    }
     try {
       const written = await memory.remember(
         {
@@ -620,7 +638,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
           text,
           scope: { kind: 'machine', id: '' },
           origin: { sessionId, workspaceId },
-          topics: [`tool:${tool}`, 'kind:lesson'],
+          topics: [`tool:${tool}`, 'kind:lesson', ...semanticTopics],
           confidence: 0.55,
           evidence: captureThreshold,
           meta: { tool, code, canonical: head },

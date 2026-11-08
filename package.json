@@ -11,10 +11,12 @@
     "./memory": "./memory/index.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./semantic": "./semantic.js"
   },
   "files": [
     "index.js",
+    "semantic.js",
     "client.js",
     "injector.js",
     "metrics.js",
