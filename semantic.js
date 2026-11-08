@@ -28,6 +28,11 @@ export function createSemantic({ ctx, settingsRef }) {
   /** 实时解析当前模型配置（不缓存：用户改配置立即生效） */
   async function currentModel() {
     try {
+      // 面板选择的模型优先（用户自选权）；否则跟随当前默认模型（实时读取，改配置立即生效）。
+      const picked = settingsRef()?.semanticModel ?? null;
+      if (picked !== null && typeof picked.provider === 'string' && picked.provider !== '' && typeof picked.model === 'string' && picked.model !== '') {
+        return { provider: picked.provider, model: picked.model };
+      }
       const selector = ctx?.get?.('agentDefaultModel');
       const selection = selector?.currentSelection?.();
       if (selection === undefined || selection === null) return null;

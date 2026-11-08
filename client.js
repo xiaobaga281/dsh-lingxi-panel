@@ -245,6 +245,8 @@ window.__ModuleLoader__.load({
         browseRefresh: '刷新',
         browseEmpty: '该状态下没有记忆。',
         browseCount: '{n} 条',
+        semanticFollow: '跟随默认模型',
+        semanticChoice: '语义模型',
         semanticToggle: '语义召回（使用当前配置的模型）',
         semanticHint: '开启后：查询扩展与写时关键词会调用你在模型配置里选中的模型；失败自动回退词法路径。',
         storageTitle: '存储位置',
@@ -636,6 +638,8 @@ window.__ModuleLoader__.load({
         browseRefresh: 'Refresh',
         browseEmpty: 'No records in this status.',
         browseCount: '{n} records',
+        semanticFollow: 'Follow default model',
+        semanticChoice: 'Semantic model',
         semanticToggle: 'Semantic recall (uses your configured model)',
         semanticHint: 'When on: query expansion and write-time keywords call the model selected in your model config; failures fall back to lexical.',
         storageTitle: 'Storage location',
@@ -2076,7 +2080,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
+    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onSemanticChoice, semanticChoice, setSemanticChoice, semanticOptions, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
       const [query, setQuery] = React.useState(() => readUsage().lastSearch);
       const [result, setResult] = React.useState(null);
       const [loading, setLoading] = React.useState(false);
@@ -2402,7 +2406,39 @@ window.__ModuleLoader__.load({
             Metric({ label: t('injectRepeat'), value: int(injection?.repeatFailures ?? 0), onClick: () => onFailures(t('detailFailures')) }),
             Metric({ label: t('injectRefined'), value: int(injection?.refined ?? 0) }),
             Metric({ label: t('injectChars'), value: int(injection?.lastChars ?? 0) })),
-          h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' } },
+          (() => {
+          const options = semanticOptions ?? null;
+          if (options === null) return null;
+          const pairs = [];
+          pairs.push({ value: '', label: t('semanticFollow') });
+          for (const provider of options.providers ?? []) {
+            const models = Array.isArray(provider.models) ? provider.models : [];
+            if (models.length === 0) {
+              pairs.push({ value: provider.id + '|', label: provider.label });
+              continue;
+            }
+            for (const model of models) {
+              pairs.push({ value: provider.id + '|' + model, label: model + '（' + provider.label + '）' });
+            }
+          }
+          const saved = semanticChoice ?? '';
+          const known = pairs.some((pair) => pair.value === saved);
+          const value = known ? saved : '';
+          return h('div', { className: 'lg-field' },
+            h('span', { className: 'lg-field-label' }, t('semanticChoice')),
+            h(Select, {
+              value,
+              options: pairs,
+              onChange: (next) => {
+                const sep = next.indexOf('|');
+                const provider = next.slice(0, sep);
+                const model = next.slice(sep + 1);
+                onSemanticChoice(provider === '' || model === '' ? null : { provider, model });
+              },
+              ariaLabel: t('semanticChoice'),
+            }));
+        })(),
+        h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' } },
             h('input', { type: 'checkbox', checked: semantic === true, disabled: busy !== '', onChange: (event) => onSemantic(event.target.checked) }),
             h('span', null, h('span', { className: 'lg-row-title' }, t('semanticToggle')),
               h('div', { className: 'lg-row-meta' }, t('semanticHint')))),
@@ -2613,6 +2649,23 @@ window.__ModuleLoader__.load({
       };
       const [busy, setBusy] = React.useState('');
       const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
+      const [semanticChoice, setSemanticChoice] = React.useState('');
+      const [semanticOptions, setSemanticOptions] = React.useState(null);
+
+      React.useEffect(() => {
+        requestJson('lingxi/semantic/options').then((body) => {
+          if (body.ok !== true) return;
+          setSemanticOptions(body);
+          const saved = body.saved ?? null;
+          setSemanticChoice(saved === null ? '' : String(saved.provider ?? '') + '|' + String(saved.model ?? ''));
+        }).catch(() => {});
+      }, []);
+
+      const semanticChoiceConfig = (picked) => run('semanticModel', async () => {
+        await postJson('lingxi/injection/config', { semanticModel: picked });
+        setSemanticChoice(picked === null ? '' : String(picked.provider) + '|' + String(picked.model));
+        return t('confirmed');
+      });
       const [notice, setNotice] = React.useState(null);
       const [detail, setDetail] = React.useState(null);
 
@@ -2970,7 +3023,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, onDecide: decide, onPromote: promote, busy, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

@@ -196,6 +196,7 @@ export function apply(ctx, config) {
         .then((metaBoot) => {
         applyAdoptionOverrides(metaBoot?.adoptionOverrides ?? {});
         if (metaBoot?.semantic !== undefined) settings.semantic = metaBoot.semantic === true;
+        settings.semanticModel = metaBoot?.semanticModel ?? null;
       })
         .catch(() => {});
     }, 0);
@@ -1778,6 +1779,35 @@ export function apply(ctx, config) {
         sendJson(response, 200, { ok: true, report: lastConsolidate });
       });
 
+      route('/lingxi/semantic/options', async (request, response) => {
+        if (!allowGetPost(request, response)) return;
+        try {
+        const llm = ctx?.get?.('llm');
+        const selector = ctx?.get?.('agentDefaultModel');
+        const current = selector?.currentSelection?.() ?? null;
+        let providers = [];
+        try {
+          const raw = llm?.listConfigurableProviders?.() ?? [];
+          providers = (Array.isArray(raw) ? raw : [])
+            .map((entry) => ({ id: String(entry?.id ?? entry?.name ?? entry?.key ?? ''), label: String(entry?.label ?? entry?.title ?? entry?.name ?? entry?.id ?? '') }))
+            .filter((entry) => entry.id !== '');
+        } catch {
+          providers = [];
+        }
+        const settled = await Promise.allSettled(providers.map((entry) => llm?.listModels?.(entry.id) ?? []));
+        const withModels = providers.map((entry, i) => {
+          const outcome = settled[i];
+          const models = outcome.status === 'fulfilled' && Array.isArray(outcome.value)
+            ? outcome.value.map((model) => String(typeof model === 'string' ? model : (model?.id ?? model?.name ?? ''))).filter((x) => x !== '')
+            : [];
+          return { id: entry.id, label: entry.label, models };
+        });
+        sendJson(response, 200, { ok: true, current, providers: withModels, saved: settings.semanticModel ?? null });
+        } catch (error) {
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
+        }
+      });
+
       route('/lingxi/injection/config', async (request, response) => {
         if (!allowGetPost(request, response)) return;
         await ensureMemory();
@@ -1791,6 +1821,13 @@ export function apply(ctx, config) {
           settings.semantic = injectionPatch.semantic === true;
           await writeMeta({ semantic: settings.semantic });
           delete injectionPatch.semantic;
+        }
+        if (injectionPatch.semanticModel !== undefined) {
+        const picked = injectionPatch.semanticModel ?? null;
+        const valid = picked !== null && typeof picked === 'object' && typeof picked.provider === 'string' && picked.provider !== '' && typeof picked.model === 'string' && picked.model !== '';
+        settings.semanticModel = valid ? { provider: picked.provider, model: picked.model } : null;
+        await writeMeta({ semanticModel: settings.semanticModel });
+        delete injectionPatch.semanticModel;
         }
     const next = injector.configure(injectionPatch);
         await writeMeta({ injection: next });
