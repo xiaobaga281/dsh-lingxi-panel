@@ -52,7 +52,11 @@ for (const record of live) {
   if (String(meta.tool ?? '') === '') continue;
   const match = /当「([^」]+)」遇到「([^」]+)」时/.exec(String(record.text ?? ''));
   if (match === null) continue;
-  if (match[1] !== String(meta.tool) || match[2] !== String(meta.code ?? '')) {
+  // 空错误码的规范正文是「反复失败」：只校验工具位一致。
+  const codeOk = String(meta.code ?? '') === ''
+    ? match[2] === '反复失败'
+    : match[2] === String(meta.code ?? '');
+  if (match[1] !== String(meta.tool) || !codeOk) {
     problems.push({ check: 'meta/正文错位', detail: (meta.tool ?? '') + '|' + (meta.code ?? '') + ' vs ' + match[1] + '|' + match[2] });
   }
 }
@@ -71,9 +75,10 @@ if (failures !== undefined) {
 try {
   const status = JSON.parse(await fsp.readFile(path.join(dir, 'injection-status.json'), 'utf8'));
   // 只比较"最近一个注入块"：status.chars 是各会话之和，拿来比预算会误报。
-  const chars = Number(status?.lastChars ?? 0);
-  // 优先用注入器记录的"本次实际场景预算"；全局 charBudget 只是默认值。
-  const budget = Number(status?.lastBudget ?? status?.charBudget ?? 0);
+  // lastBlock 是同一会话同一次写入的原子对（chars+budget），避免跨会话交错误报。
+  const block = status?.lastBlock ?? null;
+  const chars = Number(block?.chars ?? status?.lastChars ?? 0);
+  const budget = Number(block?.budget ?? status?.lastBudget ?? status?.charBudget ?? 0);
   if (budget > 0 && chars > budget) {
     problems.push({ check: '注入块超预算', detail: String(chars) + ' > ' + String(budget) });
   }

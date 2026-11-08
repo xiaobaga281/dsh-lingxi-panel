@@ -245,6 +245,8 @@ window.__ModuleLoader__.load({
         browseRefresh: '刷新',
         browseEmpty: '该状态下没有记忆。',
         browseCount: '{n} 条',
+        semanticToggle: '语义召回（使用当前配置的模型）',
+        semanticHint: '开启后：查询扩展与写时关键词会调用你在模型配置里选中的模型；失败自动回退词法路径。',
         storageTitle: '存储位置',
         storageHint: '迁移会复制全部数据并校验，写入指针后重启生效；当前数据不动。',
         storageCurrent: '当前：{dir}',
@@ -634,6 +636,8 @@ window.__ModuleLoader__.load({
         browseRefresh: 'Refresh',
         browseEmpty: 'No records in this status.',
         browseCount: '{n} records',
+        semanticToggle: 'Semantic recall (uses your configured model)',
+        semanticHint: 'When on: query expansion and write-time keywords call the model selected in your model config; failures fall back to lexical.',
         storageTitle: 'Storage location',
         storageHint: 'Migration copies all data with verification; takes effect after app restart. Current data is untouched.',
         storageCurrent: 'current: {dir}',
@@ -2072,7 +2076,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
+    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
       const [query, setQuery] = React.useState(() => readUsage().lastSearch);
       const [result, setResult] = React.useState(null);
       const [loading, setLoading] = React.useState(false);
@@ -2398,6 +2402,10 @@ window.__ModuleLoader__.load({
             Metric({ label: t('injectRepeat'), value: int(injection?.repeatFailures ?? 0), onClick: () => onFailures(t('detailFailures')) }),
             Metric({ label: t('injectRefined'), value: int(injection?.refined ?? 0) }),
             Metric({ label: t('injectChars'), value: int(injection?.lastChars ?? 0) })),
+          h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' } },
+            h('input', { type: 'checkbox', checked: semantic === true, disabled: busy !== '', onChange: (event) => onSemantic(event.target.checked) }),
+            h('span', null, h('span', { className: 'lg-row-title' }, t('semanticToggle')),
+              h('div', { className: 'lg-row-meta' }, t('semanticHint')))),
           h('div', { className: 'lg-status' }, t('injectHint')),
           h('div', { style: { marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 } },
             h(Chip, { kind: 'mute', children: `7d ${int(health?.usedLast7Days ?? 0)}` }),
@@ -2604,6 +2612,7 @@ window.__ModuleLoader__.load({
         setTab(next);
       };
       const [busy, setBusy] = React.useState('');
+      const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
       const [notice, setNotice] = React.useState(null);
       const [detail, setDetail] = React.useState(null);
 
@@ -2941,6 +2950,13 @@ window.__ModuleLoader__.load({
           .replace('{u}', int(report.upgraded ?? 0));
       });
 
+      const semanticConfig = (next) => run('semantic', async () => {
+        await postJson('lingxi/injection/config', { semantic: next === true });
+        setSemanticOn(next === true);
+        await reload(true);
+        return next === true ? t('confirmed') : t('confirmed');
+      });
+
       const injectionConfig = (patch) => run('injection', async () => {
         await postJson('lingxi/injection/config', patch);
         return t('confirmed');
@@ -2954,7 +2970,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, onDecide: decide, onPromote: promote, busy, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

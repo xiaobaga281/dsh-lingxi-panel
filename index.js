@@ -1786,7 +1786,13 @@ export function apply(ctx, config) {
           return;
         }
         const body = await readBody(request);
-        const next = injector.configure(body ?? {});
+        let injectionPatch = { ...(body ?? {}) };
+        if (injectionPatch.semantic !== undefined) {
+          settings.semantic = injectionPatch.semantic === true;
+          await writeMeta({ semantic: settings.semantic });
+          delete injectionPatch.semantic;
+        }
+    const next = injector.configure(injectionPatch);
         await writeMeta({ injection: next });
         await writeStatus();
         sendJson(response, 200, { ok: true, config: next });

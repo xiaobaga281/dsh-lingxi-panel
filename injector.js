@@ -388,6 +388,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         stats.lastAt = entry.at;
         stats.lastChars = block.length;
         stats.lastBudget = budgetFor(dominantScene(sessionId));
+        stats.lastBlock = { chars: block.length, budget: budgetFor(dominantScene(sessionId)) };
         if (block !== '') stats.injected += 1;
         ensureSession(sessionId).injectedChars = block.length;
         ensureSession(sessionId).records = result.items.length;
