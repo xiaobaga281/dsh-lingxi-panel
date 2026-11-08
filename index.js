@@ -15,7 +15,7 @@ import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons,
 import { annotate } from './noise.js';
 import { mayInject } from './memory/schema.js';
 import { createEvolver, fitnessFromDelta } from './evolve.js';
-import { inferToolMeta, lessonTextFor } from './lessons.js';
+import { applyAdoptionOverrides, inferToolMeta, lessonTextFor } from './lessons.js';
 import { sceneOf } from './scenes.js';
 import { extractInstructions } from './instructions.js';
 import { planHygiene } from './hygiene.js';
@@ -301,6 +301,24 @@ export function apply(ctx, config) {
       lastStats = current;
       lastSearchStats = { total: searchStats.total, abstained: searchStats.abstained };
       return null;
+    }
+    // 自学习：模型用表外工具成功 → 并入采纳覆盖表（持久化 + 应用）。
+    try {
+      const learned = current.adviceLearned ?? {};
+      const metaNow = await readMeta();
+      const overrides = { ...(metaNow?.adoptionOverrides ?? {}) };
+      let changed = false;
+      for (const [code, tools] of Object.entries(learned)) {
+        const merged = new Set(overrides[code] ?? []);
+        for (const tool of tools) if (!merged.has(tool)) { merged.add(tool); changed = true; }
+        if (merged.size > 0) overrides[code] = [...merged];
+      }
+      if (changed) {
+        await writeMeta({ adoptionOverrides: overrides });
+        applyAdoptionOverrides(overrides);
+      }
+    } catch {
+      // 学习失败不影响主流程
     }
     const delta = {
       injected: current.injected - lastStats.injected,

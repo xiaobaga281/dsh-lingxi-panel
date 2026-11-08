@@ -123,7 +123,29 @@ const EXPECTED_TOOLS = {
   EACCES: ['pwsh', 'bash'],
 };
 
+/**
+ * 自学习覆盖表：某错误码的建议被持续无视时，把"模型实际会用的工具"并入期望表。
+ * 持久化在记忆目录 meta.adoption，重启不丢。
+ */
+const EXPECTED_OVERRIDES = new Map();
+
+export function applyAdoptionOverrides(overrides) {
+  for (const [code, tools] of Object.entries(overrides ?? {})) {
+    if (code === '' || !Array.isArray(tools) || tools.length === 0) continue;
+    EXPECTED_OVERRIDES.set(code, tools.filter((tool) => typeof tool === 'string' && tool !== ''));
+  }
+}
+
+export function adoptionOverrides() {
+  return Object.fromEntries(EXPECTED_OVERRIDES.entries());
+}
+
+
 export function expectedToolsFor(code) {
-  const list = EXPECTED_TOOLS[String(code ?? '')];
+  const key = String(code ?? '');
+  const override = EXPECTED_OVERRIDES.get(key);
+  if (override !== undefined && override.length > 0) return override;
+  const list = EXPECTED_TOOLS[key];
   return Array.isArray(list) ? list : [];
 }
+

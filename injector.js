@@ -161,6 +161,8 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   const pendingAdvice = new Map();
   /** sessionId\u0000tool → { code, expected, at }：建议被无视后的升级状态 */
   const escalated = new Map();
+  /** code → Set(tool)：表外工具被成功使用（建议表需要学习的信号） */
+  const adviceLearned = new Map();
   /** code → { adopted, ignored }：哪类提示真正改变了动作 */
   const adviceByCode = new Map();
 
@@ -479,6 +481,12 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         } else {
           stats.adviceIgnored += 1;
           bucket.ignored += 1;
+          // 自学习信号：表外工具 + 本次成功 → 期望表应该学会它（宿主负责持久化）。
+          if (result?.isError !== true) {
+            const learned = adviceLearned.get(advice.code) ?? new Set();
+            learned.add(toolNameNow);
+            adviceLearned.set(advice.code, learned);
+          }
           // 升级阶梯：无视建议后若这次调用仍是同码失败，下次同工具调用直接硬拦。
           if (result?.isError === true && String(result?.error?.info?.code ?? '') === advice.code) {
           escalated.set(sessionId + '\u0000' + toolNameNow, { code: advice.code, expected: advice.expected, at: Date.now() });
@@ -818,6 +826,16 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   }
 
   function statsSnapshot() {
+    const adviceSummary = {};
+    for (const [code, bucket] of adviceByCode.entries()) {
+      const total = bucket.adopted + bucket.ignored;
+      if (total < 2) continue;
+      adviceSummary[code] = { adopted: bucket.adopted, ignored: bucket.ignored, rate: Math.round((bucket.adopted / total) * 1000) / 10 };
+    }
+    const learnedSummary = {};
+    for (const [code, tools] of adviceLearned.entries()) {
+      learnedSummary[code] = [...tools];
+    }
     let active = 0;
     let chars = 0;
     for (const entry of sessions.values()) {
@@ -831,6 +849,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
       sessionsWithMemory: active,
       chars,
       ...stats,
+      adviceLearned: learnedSummary,
       adviceByCode: (() => {
         const summary = {};
         for (const [code, bucket] of adviceByCode.entries()) {
