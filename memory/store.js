@@ -540,6 +540,18 @@ export class MemoryStore {
   }
 
   /** 检索结果被使用后的反馈：注入后被采纳算 hit，被忽略算 miss。 */
+  /** 批量反馈：一次遍历 + 一次落盘。outcomes: [{ id, outcome }] */
+  async observeMany(outcomes) {
+    await this.load();
+    let touched = 0;
+    for (const entry of Array.isArray(outcomes) ? outcomes : []) {
+      const done = await this.observe(entry.id, { ...entry.outcome, flush: false });
+      if (done !== null) touched += 1;
+    }
+    if (touched > 0) await this.save();
+    return touched;
+  }
+
   async observe(id, outcome = {}) {
     await this.load();
     const record = this.records.get(id);
@@ -560,7 +572,7 @@ export class MemoryStore {
     }
     record.updatedAt = at;
     this.dirty = true;
-    await this.save();
+    if (outcome.flush === true) await this.save();
     return record;
   }
 

@@ -91,6 +91,11 @@ export class LingxiMemory {
     return this.store.observe(id, outcome);
   }
 
+  /** 批量反馈：一次落盘。outcomes: [{ id, outcome }] */
+  async observeMany(outcomes) {
+    return this.store.observeMany(outcomes);
+  }
+
   async confirm(id, decision, reason = '') {
     return this.store.confirm(id, decision, reason);
   }

@@ -111,6 +111,19 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   const warnedPending = new Map();
   /** 本轮注入是否已记过 hit，避免一次注入被多个工具结果重复计数 */
   const hitRecorded = new Set();
+  /** 批量反馈：优先 observeMany（一次落盘），否则逐条回退。 */
+  async function observeBatch(ids, outcome) {
+    const list = (Array.isArray(ids) ? ids : []).filter(Boolean);
+    if (list.length === 0) return;
+    if (typeof memory.observeMany === 'function') {
+      await memory.observeMany(list.map((id) => ({ id, outcome }))).catch(() => {});
+      return;
+    }
+    for (const id of list) {
+      await memory.observe(id, outcome).catch(() => {});
+    }
+  }
+
   /** sessionId → Set(recordId)：本轮已记过功的记录，避免同一轮重复计数 */
   const credited = new Map();
   /** 已贴过的失败提示键，避免一轮里重复 */
@@ -436,16 +449,12 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         stats.corrections += 1;
         stats.correctionPenalized += Math.max(relevant.length, 0);
         const targets = relevant.length > 0 ? relevant : entry.ids;
-        for (const id of targets) {
-          await memory.observe(id, { miss: true }).catch(() => {});
-        }
+        await observeBatch(targets, { miss: true });
       } else if (!hitRecorded.has(sessionId)) {
         hitRecorded.add(sessionId);
         stats.hits += 1;
         ensureScene(dominantScene(sessionId)).hits += 1;
-        for (const id of entry.ids) {
-          await memory.observe(id, { hit: true }).catch(() => {});
-        }
+        await observeBatch(entry.ids, { hit: true });
       }
     }
     await refresh(sessionId, text);
@@ -505,9 +514,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         warnedPending.delete(key);
         stats.warnIneffective += 1;
         ensureScene(sceneOf(tool)).warnIneffective += 1;
-        for (const id of pendingWarn.ids) {
-          await memory.observe(id, { miss: true }).catch(() => {});
-        }
+        await observeBatch(pendingWarn.ids, { miss: true });
       }
       // 已经沉淀过还犯：说明记忆没被采纳或不够强 → 加强同一条，而不是再新增一条。
       if (capturedKeys.has(key)) {
@@ -539,9 +546,7 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
       warnedPending.delete(key);
       stats.warnEffective += 1;
       ensureScene(sceneOf(String(exec?.name ?? ''))).warnEffective += 1;
-      for (const id of pending.ids) {
-        await memory.observe(id, { hit: true }).catch(() => {});
-      }
+      await observeBatch(pending.ids, { hit: true });
     }
     try {
       const pending = deniedPending.get(sessionId);
