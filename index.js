@@ -188,6 +188,10 @@ export function apply(ctx, config) {
       backfillLessonMeta()
         .then((filled) => { backfilledLessons = filled; })
         .catch(() => {});
+      // 恢复采纳覆盖表：自学习得出的期望工具修正，重启不丢。
+      readMeta()
+        .then((metaBoot) => applyAdoptionOverrides(metaBoot?.adoptionOverrides ?? {}))
+        .catch(() => {});
     }, 0);
     return memory;
   }
