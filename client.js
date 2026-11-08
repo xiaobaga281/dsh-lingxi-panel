@@ -2019,22 +2019,7 @@ window.__ModuleLoader__.load({
             Metric({ label: t('liveToolErrors'), value: int(live?.toolErrors ?? 0) }))),
 
         ),
-        // 记忆里最相关的几条教训
-        h(Card, { title: t('liveLessons'), hint: int(derived?.lessons?.length ?? 0) },
-          lessons.length === 0
-            ? h(Empty, { icon: 'lesson', title: t('noLiveLessons') })
-            : h('div', null,
-                lessons.map((item) =>
-                  h('div', { className: 'lg-row', key: item.id },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, item.action),
-                      h('div', { className: 'lg-row-meta' },
-                        h(Chip, { kind: 'mute', children: item.sharing }),
-                        item.resurrected === true ? h(Chip, { kind: 'warn', children: t('resurrectedChip') }) : null,
-                        item.gapFilled === true ? h(Chip, { kind: 'mute', children: t('lessonGapFilled') }) : null,
-                        String(item.demoteReason ?? '') !== '' ? h(Chip, { kind: 'warn', children: t('demoteReasonChip').replace('{s}', String(item.demoteReason)) }) : null,
-                        h('span', null, t('lessonVotes').replace('{n}', int(item.votes))),
-                        item.updatedAt > 0 ? h('span', null, relTime(item.updatedAt, t)) : null)))))));
+      );
     }
 
     /* ================================================================ 记忆 */
