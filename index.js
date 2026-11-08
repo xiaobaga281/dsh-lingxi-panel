@@ -1785,16 +1785,36 @@ export function apply(ctx, config) {
         const llm = ctx?.get?.('llm');
         const selector = ctx?.get?.('agentDefaultModel');
         const current = selector?.currentSelection?.() ?? null;
-        let providers = [];
-        try {
-          const raw = llm?.listConfigurableProviders?.() ?? [];
-          providers = (Array.isArray(raw) ? raw : [])
-            .map((entry) => ({ id: String(entry?.id ?? entry?.name ?? entry?.key ?? ''), label: String(entry?.label ?? entry?.title ?? entry?.name ?? entry?.id ?? '') }))
-            .filter((entry) => entry.id !== '');
-        } catch {
-          providers = [];
+        // 1) 有适配器的注册路由（当前真正可调用的）
+        const registered = (() => {
+          try {
+            const raw = llm?.listProviders?.() ?? [];
+            return (Array.isArray(raw) ? raw : []).map((entry) => ({ id: String(entry?.id ?? ''), label: String(entry?.name ?? entry?.id ?? '') }))
+              .filter((entry) => entry.id !== '');
+          } catch {
+            return [];
+          }
+        })();
+        // 2) 可配置目录（含休眠的，字段是 provider/displayName）
+        const configurable = (() => {
+          try {
+            const raw = llm?.listConfigurableProviders?.() ?? [];
+            return (Array.isArray(raw) ? raw : []).map((entry) => ({ id: String(entry?.provider ?? ''), label: String(entry?.displayName ?? entry?.provider ?? '') }))
+              .filter((entry) => entry.id !== '');
+          } catch {
+            return [];
+          }
+        })();
+        // 合并去重（按 id），registered 在前
+        const seen = new Set();
+        const providers = [];
+        for (const entry of [...registered, ...configurable]) {
+          if (seen.has(entry.id)) continue;
+          seen.add(entry.id);
+          providers.push(entry);
         }
-        const settled = await Promise.allSettled(providers.map((entry) => llm?.listModels?.(entry.id) ?? []));
+        // 3) 逐 provider 拉模型目录（LlmModelInfo: { provider, id, name }）
+        const settled = await Promise.allSettled(providers.map((entry) => llm?.listModels?.(entry.id) ?? Promise.resolve([])));
         const withModels = providers.map((entry, i) => {
           const outcome = settled[i];
           const models = outcome.status === 'fulfilled' && Array.isArray(outcome.value)
@@ -1802,6 +1822,15 @@ export function apply(ctx, config) {
             : [];
           return { id: entry.id, label: entry.label, models };
         });
+        // 4) 当前默认模型并入列表（即使用户 provider 不在目录里也能显式选到）
+        if (current !== null && current.provider !== undefined && current.model !== undefined) {
+          const hit = withModels.find((entry) => entry.id === current.provider);
+          if (hit === undefined) {
+            withModels.push({ id: String(current.provider), label: String(current.provider), models: [String(current.model)] });
+          } else if (!hit.models.includes(String(current.model))) {
+            hit.models.unshift(String(current.model));
+          }
+        }
         sendJson(response, 200, { ok: true, current, providers: withModels, saved: settings.semanticModel ?? null });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
