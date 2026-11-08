@@ -594,5 +594,18 @@ await check('升级阶梯：建议无视且同码再犯 → 同工具下次调�
   assert.ok(after === undefined || !String(after).includes('期望用'), 'escalation cleared: ' + String(after));
   assert.equal(injector.stats().adviceAdopted, 1);
 });
+
+await check('采纳覆盖表：低采纳场景的期望工具可被自学习覆盖', async () => {
+  const { expectedToolsFor, applyAdoptionOverrides, adoptionOverrides } = await import('./lessons.js');
+  const base = expectedToolsFor('FS_NOT_FOUND');
+  assert.ok(base.includes("glob"), "base table should contain glob");
+  applyAdoptionOverrides({ FS_NOT_FOUND: ["glob", "pwsh"] });
+  const after = expectedToolsFor("FS_NOT_FOUND");
+  assert.deepEqual(after, ["glob", "pwsh"], "override replaces base");
+  assert.deepEqual(adoptionOverrides().FS_NOT_FOUND, ["glob", "pwsh"]);
+  // 空覆盖不生效，回落基表
+  applyAdoptionOverrides({ FS_STALE_VERSION: [] });
+  assert.ok(expectedToolsFor("FS_STALE_VERSION").length > 0, "empty override falls back to base");
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);
