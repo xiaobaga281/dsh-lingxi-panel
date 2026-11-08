@@ -27,6 +27,7 @@ export class LingxiMemory {
   constructor(options = {}) {
     this.dir = options.dir;
     this.store = new MemoryStore({ dir: options.dir });
+    this.indexCache = { key: null, index: null };
   }
 
   get schemaVersion() {
@@ -65,7 +66,7 @@ export class LingxiMemory {
     await this.store.load();
     const { charBudget = 900, ...rest } = options;
     const queryText = query === undefined || query === null ? '' : String(query);
-    const result = this.store.search(queryText, { ...rest, charBudget });
+    const result = this.store.search(queryText, { ...rest, charBudget, indexCache: this.indexCache, indexVersion: this.store.version });
     if (result.abstain) {
       return {
         items: [],

@@ -48,6 +48,7 @@ export class MemoryStore {
     this.records = new Map();
     this.loaded = false;
     this.dirty = false;
+    this.version = 0;
     this.lastSaveAt = 0;
     this.lastError = null;
   }
@@ -93,6 +94,7 @@ export class MemoryStore {
       await fsp.writeFile(tmp, JSON.stringify(payload), 'utf8');
       await fsp.rename(tmp, this.file);
       this.dirty = false;
+    this.version = (this.version ?? 0) + 1;
       this.lastSaveAt = Date.now();
       this.lastError = null;
     } catch (error) {
@@ -140,6 +142,7 @@ export class MemoryStore {
     // 保留精确副本，支持"撤销最近一次删除"。
     this.lastDeleted = targets.map((record) => ({ ...record }));
     for (const record of targets) this.records.delete(record.id);
+    this.version += 1;
     await this.save();
     return { removed: targets.length, remaining: this.records.size, backup: true };
   }
@@ -194,6 +197,7 @@ export class MemoryStore {
     record.text = next;
     record.updatedAt = Date.now();
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return record;
   }
@@ -212,7 +216,8 @@ export class MemoryStore {
     }
     if (touched > 0) {
       this.dirty = true;
-      await this.save();
+      this.version += 1;
+    await this.save();
     }
     return touched;
   }
@@ -226,6 +231,7 @@ export class MemoryStore {
     if (reason !== '') record.meta = { ...(record.meta ?? {}), demoteReason: String(reason), demotedAt: Date.now() };
     record.updatedAt = Date.now();
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return record;
   }
@@ -237,6 +243,7 @@ export class MemoryStore {
     if (record === undefined) return null;
     record.meta = { ...(record.meta ?? {}), ...(patch ?? {}) };
     record.updatedAt = Date.now();
+    this.version += 1;
     await this.save();
     return record;
   }
@@ -266,6 +273,7 @@ export class MemoryStore {
     // 保留精确副本，支持"撤销最近一次删除"。
     this.lastDeleted = targets.map((record) => ({ ...record }));
     for (const record of targets) this.records.delete(record.id);
+    this.version += 1;
     await this.save();
     return { removed: targets.length, remaining: this.records.size, backup: true };
   }
@@ -307,6 +315,7 @@ export class MemoryStore {
       removed = this.records.size;
       this.records.clear();
     }
+    this.version += 1;
     await this.save();
     return { mode, removed, remaining: this.records.size, at: Date.now() };
   }
@@ -340,6 +349,7 @@ export class MemoryStore {
       const record = reviveRecord(entry);
       if (record !== null) this.records.set(record.id, record);
     }
+    this.version += 1;
     await this.save();
     return { restored: this.records.size, from: name };
   }
@@ -423,7 +433,8 @@ export class MemoryStore {
         sameClaim.lastUsedAt = at;
         sameClaim.updatedAt = at;
         this.dirty = true;
-        await this.save();
+        this.version += 1;
+    await this.save();
         return { action: 'noop', record: sameClaim, related: [] };
       }
       const before = {
@@ -454,7 +465,8 @@ export class MemoryStore {
         sameClaim.provenance.length !== before.provenance ||
         sameClaim.status !== before.status;
       this.dirty = true;
-      await this.save();
+      this.version += 1;
+    await this.save();
       return { action: changed ? 'update' : 'noop', record: sameClaim, related: [] };
     }
 
@@ -479,7 +491,8 @@ export class MemoryStore {
         this.records.set(draft.id, draft);
         this.trim();
         this.dirty = true;
-        await this.save();
+        this.version += 1;
+    await this.save();
         return { action: 'supersede', record: draft, related: [target] };
       }
       draft.status = 'candidate';
@@ -494,6 +507,7 @@ export class MemoryStore {
     this.records.set(draft.id, draft);
     this.trim();
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return { action: contradicting.length > 0 ? 'contradicted' : 'created', record: draft, related: contradicting };
   }
@@ -515,6 +529,7 @@ export class MemoryStore {
       record.updatedAt = at;
     }
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return record;
   }
@@ -535,6 +550,7 @@ export class MemoryStore {
     record.sharing = sharing;
     record.updatedAt = at;
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return record;
   }
@@ -648,6 +664,7 @@ export class MemoryStore {
     this.trim();
     report.total = this.records.size;
     this.dirty = true;
+    this.version += 1;
     await this.save();
     return report;
   }

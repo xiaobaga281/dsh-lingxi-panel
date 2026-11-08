@@ -127,6 +127,8 @@ export function search(records, query, options = {}) {
     limit = 8,
     charBudget = 1200,
     weights = DEFAULT_WEIGHTS,
+    indexCache = null,
+    indexVersion = undefined,
     at = Date.now(),
   } = options;
 
@@ -138,7 +140,20 @@ export function search(records, query, options = {}) {
   });
   if (candidates.length === 0) return { items: [], confident: false, abstain: true, topScore: 0 };
 
-  const index = buildIndex(candidates);
+  // 索引缓存：记录版本未变时复用（BM25 索引构建是每次查询的最大成本）。
+  const cacheKey = indexVersion === undefined ? null
+    : (Array.isArray(statuses) ? statuses.join(',') : '') + '|' + (Array.isArray(kinds) ? kinds.join(',') : '') + '|' + indexVersion
+    + '|' + (context?.workspaceId ?? '') + '|' + (context?.sessionId ?? '');
+  let index = null;
+  if (indexCache !== null && cacheKey !== null && indexCache.key === cacheKey) {
+    index = indexCache.index;
+  } else {
+    index = buildIndex(candidates);
+    if (indexCache !== null && cacheKey !== null) {
+      indexCache.key = cacheKey;
+      indexCache.index = index;
+    }
+  }
   const queryTokens = tokenize(query);
   const rawLexical = index.docs.map((doc) => (queryTokens.length === 0 ? 0 : bm25(index, doc, queryTokens)));
   const maxLexical = Math.max(...rawLexical, 0.0001);
