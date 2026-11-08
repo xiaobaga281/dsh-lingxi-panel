@@ -2306,21 +2306,6 @@ window.__ModuleLoader__.load({
             h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate')))),
         ),
 
-        h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
-          h('div', { className: 'lg-field', style: { minWidth: 150 } },
-            h(Select, {
-              value: browseStatus,
-              options: [
-                { value: '', label: t('browseStatusAll') },
-                { value: 'active', label: t('statusActive') },
-                { value: 'candidate', label: t('statusCandidate') },
-                { value: 'retired', label: t('statusRetired') },
-              ],
-              onChange: (next) => setBrowseStatus(next),
-              ariaLabel: t('browseTitle'),
-            })),
-          h('button', { type: 'button', className: 'lg-btn', onClick: () => onDetail(t('browseTitle'), { status: browseStatus, limit: 100 }) }, t('detailOpen'))),
-
         h(BrowseCard, { t, busy, status: browseStatus, setStatus: setBrowseStatus, items: browseList, onDelete: onDeleteOne, onRefresh: () => loadBrowse(browseStatus) }),
 
         h(Card, { title: t('pendingQueue'), hint: (memory?.pendingHidden ?? 0) > 0 ? t('pendingHint') + ' ' + t('pendingHiddenHint').replace('{n}', int(memory.pendingHidden)) : t('pendingHint') },
