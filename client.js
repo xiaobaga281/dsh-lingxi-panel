@@ -245,6 +245,12 @@ window.__ModuleLoader__.load({
         browseRefresh: '刷新',
         browseEmpty: '该状态下没有记忆。',
         browseCount: '{n} 条',
+        semanticStatsTitle: '语义召回运行情况',
+        semanticCalls: '调用 {n} 次 · 成功 {ok} · 失败 {fail} · 超时 {to}',
+        semanticLatency: '上次耗时 {ms}ms · 模型 {model}',
+        semanticLastExpansion: '最近扩展：{text}',
+        semanticIdle: '尚未调用（开启后需有真实对话触发）',
+        semanticError: '最近错误：{error}',
         semanticFollow: '跟随默认模型',
         semanticChoice: '语义模型',
         semanticToggle: '语义召回（使用当前配置的模型）',
@@ -638,6 +644,12 @@ window.__ModuleLoader__.load({
         browseRefresh: 'Refresh',
         browseEmpty: 'No records in this status.',
         browseCount: '{n} records',
+        semanticStatsTitle: 'Semantic recall activity',
+        semanticCalls: '{n} calls · {ok} ok · {fail} failed · {to} timeout',
+        semanticLatency: 'last {ms}ms · model {model}',
+        semanticLastExpansion: 'last expansion: {text}',
+        semanticIdle: 'not called yet (needs a real turn after enabling)',
+        semanticError: 'last error: {error}',
         semanticFollow: 'Follow default model',
         semanticChoice: 'Semantic model',
         semanticToggle: 'Semantic recall (uses your configured model)',
@@ -2080,7 +2092,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onSemanticChoice, semanticChoice, setSemanticChoice, semanticOptions, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
+    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onSemanticChoice, semanticChoice, setSemanticChoice, semanticOptions, semanticStats, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
       const [query, setQuery] = React.useState(() => readUsage().lastSearch);
       const [result, setResult] = React.useState(null);
       const [loading, setLoading] = React.useState(false);
@@ -2442,6 +2454,30 @@ window.__ModuleLoader__.load({
         })(),
         h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' } },
             h('input', { type: 'checkbox', checked: semantic === true, disabled: busy !== '', onChange: (event) => onSemantic(event.target.checked) }),
+        semantic === true && semanticStats !== undefined && semanticStats !== null
+          ? h('div', { className: 'lg-card-hint', style: { marginTop: 8 } },
+            h('div', { className: 'lg-row-meta' }, t('semanticStatsTitle')),
+            semanticStats.calls === 0
+              ? h('div', { className: 'lg-row-meta' }, t('semanticIdle'))
+              : h('div', { className: 'lg-row-meta' },
+                t('semanticCalls')
+                  .replace('{n}', int(semanticStats.calls))
+                  .replace('{ok}', int(semanticStats.ok))
+                  .replace('{fail}', int(semanticStats.failed))
+                  .replace('{to}', int(semanticStats.timeout))),
+            semanticStats.calls > 0
+              ? h('div', { className: 'lg-row-meta' },
+                t('semanticLatency')
+                  .replace('{ms}', int(semanticStats.lastLatencyMs))
+                  .replace('{model}', String(semanticStats.model ?? '—')))
+              : null,
+            String(semanticStats.lastExpansion ?? '') !== ''
+              ? h('div', { className: 'lg-row-meta' }, t('semanticLastExpansion').replace('{text}', String(semanticStats.lastExpansion)))
+              : null,
+            String(semanticStats.lastError ?? '') !== ''
+              ? h('div', { className: 'lg-row-meta', style: { color: 'var(--dsw-alias-label-tertiary)' } }, t('semanticError').replace('{error}', String(semanticStats.lastError)))
+              : null)
+          : null,
             h('span', null, h('span', { className: 'lg-row-title' }, t('semanticToggle')),
               h('div', { className: 'lg-row-meta' }, t('semanticHint')))),
           h('div', { className: 'lg-status' }, t('injectHint')),
@@ -3028,7 +3064,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, onDecide: decide, onPromote: promote, busy, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,
