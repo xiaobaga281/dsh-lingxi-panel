@@ -243,10 +243,36 @@ const CORRECTION_PATTERNS = [
   /太片面/, /不够准/, /不准确/, /不理想/, /不满意/, /还是差/
 ];
 
-export function classifyCorrection(text) {
+/**
+ * 质疑式反馈：中文里最常见的纠正形式并不是"你错了"，
+ * 而是"为什么还不…""怎么还…""根本没好""太难看了"。
+ * 这些是真反馈，但比显式否定弱，单独一档统计。
+ */
+const PUSHBACK_PATTERNS = [
+  // 否定式疑问：指向"上一个动作没达成"
+  /为什么[^。？！]{0,20}(不|没|没有)/, /咋[^。？！]{0,12}(不|没)/, /怎么[^。？！]{0,12}(还不|还没|没有|不)/,
+  // 仍然/还是 + 旧状态
+  /(还是|仍然|依然)[^。？！]{0,10}(旧|以前|老|原来|空的|没)/, /(根本|完全)(没|不)/,
+  // 缺失与不足
+  /(连|连个)[^。？！]{0,10}(都)?(没|没有)/, /(少|缺|漏)了/, /没有[^。？！]{0,8}(吗|吧|啊)/,
+  // 外观/质量不满
+  /太难(看|用|懂|乱)/, /太(乱|丑|差|低|少)/, /不(一致|匹配|协调|统一)/, /(就)?是(个)?摆设/,
+  /(和|跟|与)[^。？！]{0,14}(不一样|不同|差别)/, /(不是|并不是)我要(的|求)/,
+  // 不生效/未达成
+  /(不|没)生效/, /(不|没)起作用/, /(不|没)起作用/, /(不|没)(持久|保存住|显示出来)/, /(显示|出来|读到)的是(空|旧)/,
+];
+
+/** 返回 none | explicit | pushback：两档强度不同，分开计数才诚实。 */
+export function classifyCorrectionKind(text) {
   const value = String(text ?? '').trim();
-  if (value === '') return false;
-  return CORRECTION_PATTERNS.some((pattern) => pattern.test(value));
+  if (value === '') return 'none';
+  if (CORRECTION_PATTERNS.some((pattern) => pattern.test(value))) return 'explicit';
+  if (PUSHBACK_PATTERNS.some((pattern) => pattern.test(value))) return 'pushback';
+  return 'none';
+}
+
+export function classifyCorrection(text) {
+  return classifyCorrectionKind(text) !== 'none';
 }
 
 /**
@@ -260,24 +286,30 @@ export function summarizeCorrections(events, { now = Date.now(), windowDays = 7 
   const previousFrom = now - 2 * windowDays * day;
   const samples = [];
   const buckets = {
-    all: { messages: 0, corrections: 0 },
-    recent: { messages: 0, corrections: 0 },
-    previous: { messages: 0, corrections: 0 },
+    all: { messages: 0, corrections: 0, pushback: 0 },
+    recent: { messages: 0, corrections: 0, pushback: 0 },
+    previous: { messages: 0, corrections: 0, pushback: 0 },
   };
   for (const entry of list) {
     const at = Number(entry.at);
     const text = String(entry.text ?? '');
     if (!Number.isFinite(at)) continue;
-    const hit = classifyCorrection(text) ? 1 : 0;
+    // 两档强度分开计数：显式否定 vs 质疑式反馈
+    const kind = classifyCorrectionKind(text);
+    const hit = kind === 'explicit' ? 1 : 0;
+    const soft = kind === 'pushback' ? 1 : 0;
     buckets.all.messages += 1;
     buckets.all.corrections += hit;
-    if (samples.length < 3 && text !== '') samples.push(text.slice(0, 40));
+    buckets.all.pushback += soft;
+    if (samples.length < 3 && text !== '' && (hit === 1 || soft === 1)) samples.push(text.slice(0, 40));
     if (at >= recentFrom) {
       buckets.recent.messages += 1;
       buckets.recent.corrections += hit;
+      buckets.recent.pushback += soft;
     } else if (at >= previousFrom) {
       buckets.previous.messages += 1;
       buckets.previous.corrections += hit;
+      buckets.previous.pushback += soft;
     }
   }
   // 14 天日序列，供前端画柱状图（无消息的天不画柱子）。
@@ -287,34 +319,46 @@ export function summarizeCorrections(events, { now = Date.now(), windowDays = 7 
     const at = Number(entry.at);
     if (!Number.isFinite(at)) continue;
     const key = dayKey(at);
-    const bucket = dayBuckets.get(key) ?? { day: key, messages: 0, corrections: 0 };
+    const bucket = dayBuckets.get(key) ?? { day: key, messages: 0, corrections: 0, pushback: 0 };
     bucket.messages += 1;
-    if (classifyCorrection(String(entry.text ?? ''))) bucket.corrections += 1;
+    const kind = classifyCorrectionKind(String(entry.text ?? ''));
+    if (kind === 'explicit') bucket.corrections += 1;
+    if (kind === 'pushback') bucket.pushback += 1;
     dayBuckets.set(key, bucket);
   }
   const series = [];
   for (let offset = seriesDays - 1; offset >= 0; offset -= 1) {
     const at = now - offset * day;
     const key = dayKey(at);
-    const bucket = dayBuckets.get(key) ?? { day: key, messages: 0, corrections: 0 };
+    const bucket = dayBuckets.get(key) ?? { day: key, messages: 0, corrections: 0, pushback: 0 };
+    const feedback = bucket.corrections + bucket.pushback;
     series.push({
       day: key,
       messages: bucket.messages,
       corrections: bucket.corrections,
+      pushback: bucket.pushback,
       ratePer100: bucket.messages === 0
         ? null
         : Math.round((bucket.corrections / bucket.messages) * 1000) / 10,
+      feedbackPer100: bucket.messages === 0
+        ? null
+        : Math.round((feedback / bucket.messages) * 1000) / 10,
     });
   }
 
   const rate = (bucket) =>
     bucket.messages === 0 ? null : Math.round((bucket.corrections / bucket.messages) * 1000) / 10;
+  const feedbackRate = (bucket) =>
+    bucket.messages === 0 ? null : Math.round(((bucket.corrections + bucket.pushback) / bucket.messages) * 1000) / 10;
   return {
     totalMessages: buckets.all.messages,
     totalCorrections: buckets.all.corrections,
+    totalPushback: buckets.all.pushback,
     ratePer100: rate(buckets.all),
-    recent: { ...buckets.recent, ratePer100: rate(buckets.recent) },
-    previous: { ...buckets.previous, ratePer100: rate(buckets.previous) },
+    feedbackPer100: feedbackRate(buckets.all),
+    // 显式否定的权重更高：它才是"确实做错了"的信号
+    recent: { ...buckets.recent, ratePer100: rate(buckets.recent), feedbackPer100: feedbackRate(buckets.recent) },
+    previous: { ...buckets.previous, ratePer100: rate(buckets.previous), feedbackPer100: feedbackRate(buckets.previous) },
     windowDays,
     samples,
     series,

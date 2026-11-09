@@ -21,9 +21,9 @@ window.__ModuleLoader__.load({
         updated: '更新于 {time}',
         memoryLabel: '记忆库',
 
-        tabOverview: '概览',
-        tabMemory: '记忆',
-        tabEvolution: '进化',
+        tabOverview: '总览',
+        tabMemory: '记忆库',
+        tabEvolution: '学习效果',
 
         efficacy: '进化疗效',
         fcr: '首次正确率',
@@ -153,6 +153,10 @@ window.__ModuleLoader__.load({
         detailLoading: '加载中…',
         detailEmpty: '没有条目',
         detailClose: '关闭',
+        detailAll: '全部记忆',
+        detailActive: '生效中的记忆',
+        detailAll: 'All memories',
+        detailActive: 'Active memories',
         detailCandidates: '待确认候选',
         detailRetired: '已退役（优胜劣汰）',
         detailLessons: '全部教训',
@@ -251,6 +255,56 @@ window.__ModuleLoader__.load({
         semanticLastExpansion: '最近扩展：{text}',
         semanticIdle: '尚未调用（开启后需有真实对话触发）',
         semanticError: '最近错误：{error}',
+        settingsTitle: '设定',
+        settingsInject: '注入',
+        settingsMaintain: '维护',
+        injectEnabled: '启用记忆注入',
+        injectEnabledHint: '关闭后完全不进入上下文',
+        injectBudgetLabel: '字符预算',
+        injectBudgetHint: '每个回合注入记忆的上限，按场景自动微调',
+        semanticShort: '启用语义召回',
+        storageCurrentLabel: '当前位置',
+        flowInject: '注入',
+        flowHit: '命中',
+        flowMiss: '证伪',
+        flowGuard: '拦截重试',
+        flowPrune: '淘汰合并',
+        attrScene: '场景',
+        attrBeforeShort: '前',
+        attrAfterShort: '后',
+        attrDeltaShort: '变化',
+        attrHitShort: '命中率',
+        attrEmpty: '暂无对照数据',
+        coverageSessions: '会话',
+        coverageCount: '次数',
+        selfcheckRun: '运行',
+        times: '次',
+        alertAudit: '体检发现异常，建议在设定里运行修复',
+        colContent: '内容',
+        colKind: '类型',
+        colStatus: '状态',
+        colSharing: '共享',
+        colHits: '命中',
+        colSource: '来源',
+        memoryListTitle: '记忆清单',
+        memoryListHint: '显示 {n} 条 · 全库 {total} 条',
+        purgeDryRun: '预览',
+        colLesson: '教训',
+        colState: '状态',
+        colSessions: '会话',
+        lessonEfficacyTitle: '教训疗效',
+        lessonEfficacyHint: '每条教训沉淀前后，对应场景的失败次数变化',
+        lessonEfficacyEmpty: '暂无对照数据（需要教训沉淀后产生新的失败样本）',
+        corrPrecisionShort: '反馈精准度',
+        attrPerCorrection: '条/次',
+        statTotal: '记忆总量',
+        statActive: '生效中',
+        statCorr: '纠错率',
+        statFeedback: '反馈率',
+        statFeedbackHint: '含质疑式反馈（不生效/没显示/难看等），比显式纠错更接近真实',
+        corrSplit: '显式纠错 {a}% · 含质疑 {b}%',
+        statCoverage: '场景覆盖',
+        statAlerts: '异常告警',
         semanticFollow: '跟随默认模型',
         semanticChoice: '语义模型',
         semanticToggle: '语义召回（使用当前配置的模型）',
@@ -312,8 +366,6 @@ window.__ModuleLoader__.load({
         hygieneHint: '可疑隔离、过时淘汰、重复合并、旧文案升级',
         hygieneProven: '已验证',
         hygieneConsolidated: '已融合',
-        hygieneConsolidated: 'fusioned',
-        hygieneProven: 'proven',
         hygieneScan: '扫描',
         hygieneQuarantined: '隔离',
         hygieneEvicted: '淘汰',
@@ -439,8 +491,8 @@ window.__ModuleLoader__.load({
         memoryLabel: 'Memory',
 
         tabOverview: 'Overview',
-        tabMemory: 'Memory',
-        tabEvolution: 'Evolution',
+        tabMemory: 'Library',
+        tabEvolution: 'Effect',
 
         efficacy: 'Efficacy',
         fcr: 'First-call correctness',
@@ -654,6 +706,56 @@ window.__ModuleLoader__.load({
         semanticLastExpansion: 'last expansion: {text}',
         semanticIdle: 'not called yet (needs a real turn after enabling)',
         semanticError: 'last error: {error}',
+        settingsTitle: 'Settings',
+        settingsInject: 'Injection',
+        settingsMaintain: 'Maintenance',
+        injectEnabled: 'Enable memory injection',
+        injectEnabledHint: 'When off, nothing enters the context',
+        injectBudgetLabel: 'Character budget',
+        injectBudgetHint: 'Upper bound per turn, tuned per scene',
+        semanticShort: 'Enable semantic recall',
+        storageCurrentLabel: 'Current location',
+        flowInject: 'Injected',
+        flowHit: 'Hit',
+        flowMiss: 'Falsified',
+        flowGuard: 'Blocked',
+        flowPrune: 'Pruned',
+        attrScene: 'Scene',
+        attrBeforeShort: 'Before',
+        attrAfterShort: 'After',
+        attrDeltaShort: 'Change',
+        attrHitShort: 'Hit rate',
+        attrEmpty: 'No comparison data yet',
+        coverageSessions: 'Sessions',
+        coverageCount: 'Count',
+        selfcheckRun: 'Run',
+        times: 'runs',
+        alertAudit: 'Audit found issues; run repair in Settings',
+        colContent: 'Content',
+        colKind: 'Kind',
+        colStatus: 'Status',
+        colSharing: 'Sharing',
+        colHits: 'Hits',
+        colSource: 'Source',
+        memoryListTitle: 'Memories',
+        memoryListHint: 'showing {n} · {total} total',
+        purgeDryRun: 'Preview',
+        colLesson: 'Lesson',
+        colState: 'State',
+        colSessions: 'Sessions',
+        lessonEfficacyTitle: 'Lesson efficacy',
+        lessonEfficacyHint: 'Failures in the matching scene before vs after the lesson existed',
+        lessonEfficacyEmpty: 'No comparison data yet',
+        corrPrecisionShort: 'Feedback precision',
+        attrPerCorrection: 'per correction',
+        statTotal: 'Total',
+        statActive: 'Active',
+        statCorr: 'Correction rate',
+        statFeedback: 'Feedback rate',
+        statFeedbackHint: 'Includes pushback (not working / not showing / ugly), closer to reality than explicit corrections',
+        corrSplit: 'explicit {a}% · with pushback {b}%',
+        statCoverage: 'Coverage',
+        statAlerts: 'Alerts',
         semanticFollow: 'Follow default model',
         semanticChoice: 'Semantic model',
         semanticToggle: 'Semantic recall (uses your configured model)',
@@ -888,6 +990,40 @@ window.__ModuleLoader__.load({
     /* 容器只负责定位浮层；箭头由 .lg-select-chevron 画，避免出现两个箭头 */
     .lg-select-wrap { position: relative; }
 
+    /* 抽屉/工具栏里的表单控件：这些容器没有 .lg-field 父级，
+       需要自带完整外观，否则会退回浏览器默认的方角灰底。 */
+    .lx-field-ctl .lg-select,
+    .lx-field-ctl .lg-input,
+    .lx-toolbar .lg-select,
+    .lx-toolbar .lg-input {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; height: 34px; box-sizing: border-box;
+      padding: 0 12px; border-radius: 10px;
+      background: var(--dsw-alias-bg-layer-1);
+      border: 1px solid var(--dsw-alias-border-l1);
+      color: var(--dsw-alias-label-primary);
+      font-size: 13px; line-height: 32px; outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .lx-field-ctl .lg-select { padding-right: 30px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+    .lx-field-ctl .lg-select:hover,
+    .lx-field-ctl .lg-input:hover,
+    .lx-toolbar .lg-select:hover,
+    .lx-toolbar .lg-input:hover { background: var(--dsw-alias-bg-layer-2); }
+    .lx-field-ctl .lg-select:focus-visible,
+    .lx-field-ctl .lg-input:focus-visible,
+    .lx-toolbar .lg-select:focus-visible,
+    .lx-toolbar .lg-input:focus-visible {
+      border-color: var(--dsw-alias-brand-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-brand-primary) 20%, transparent);
+      background: var(--dsw-alias-bg-layer-2);
+    }
+    /* 让下拉在抽屉里撑满宽度，而不是被内容撑成小方块 */
+    .lx-field-ctl .lg-select-wrap { position: relative; flex: 1 1 auto; min-width: 0; width: 100%; }
+    .lx-toolbar .lg-select-wrap { position: relative; flex: 1 1 140px; min-width: 0; }
+    .lx-field-ctl .lg-select-label,
+    .lx-toolbar .lg-select-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
     .lg-input[type="number"]::-webkit-outer-spin-button,
     .lg-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .lg-input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
@@ -991,6 +1127,77 @@ window.__ModuleLoader__.load({
 .lg-seg-count { min-width: 17px; height: 17px; padding: 0 5px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-label-primary-inverted); font-size: 10px; font-weight: 650; }
 
 .lg-stack > * + * { margin-top: 14px; }
+
+/* ===== 新布局：状态条 / 数据表 / 分区标题 / 流程条 / 抽屉 / 图表 ===== */
+.lx-statbar { display: flex; align-items: stretch; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
+.lx-stat { flex: 1 1 0; min-width: 0; padding: 11px 14px; display: flex; flex-direction: column; gap: 3px; border: none; border-right: 1px solid var(--dsw-alias-border-l1); background: none; text-align: left; font: inherit; color: inherit; box-sizing: border-box; }
+.lx-stat:last-child { border-right: none; }
+.lx-stat-btn { cursor: pointer; transition: background-color .14s ease; }
+.lx-stat-btn:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.lx-stat-value { font-size: 19px; font-weight: 650; line-height: 1.15; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-stat-value[data-tone="ok"] { color: var(--dsw-alias-brand-primary); }
+.lx-stat-value[data-tone="mute"] { color: var(--dsw-alias-label-tertiary); }
+.lx-stat-label { font-size: 11px; line-height: 1.3; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.lx-table-wrap { width: 100%; overflow-x: auto; }
+.lx-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.lx-table th { text-align: left; font-weight: 600; font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 8px 12px; border-bottom: 1px solid var(--dsw-alias-border-l1); white-space: nowrap; }
+.lx-table td { padding: 10px 12px; vertical-align: top; line-height: 1.5; border-bottom: 1px solid var(--dsw-alias-border-l1); color: var(--dsw-alias-label-secondary); }
+.lx-table tr:last-child td { border-bottom: none; }
+.lx-table tbody tr { transition: background-color .14s ease; }
+.lx-table tbody tr:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.lx-cell-main { color: var(--dsw-alias-label-primary); }
+.lx-cell-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lx-cell-nowrap { white-space: nowrap; }
+.lx-table-empty { padding: 22px 12px; text-align: center; font-size: 12.5px; color: var(--dsw-alias-label-tertiary); }
+.lx-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; opacity: .32; transition: opacity .14s ease; }
+.lx-table tbody tr:hover .lx-actions, .lx-actions:focus-within { opacity: 1; }
+
+.lx-section { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 4px 0 2px; }
+.lx-section-title { font-size: 13px; font-weight: 650; color: var(--dsw-alias-label-primary); }
+.lx-section-hint { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); margin-top: 2px; }
+.lx-section-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.lx-flow { display: flex; align-items: center; flex-wrap: wrap; }
+.lx-flow-step { display: flex; align-items: center; gap: 9px; padding: 7px 11px; border: none; background: none; border-radius: 10px; font: inherit; color: inherit; transition: background-color .14s ease; box-sizing: border-box; }
+.lx-flow-step.is-click { cursor: pointer; }
+.lx-flow-step.is-click:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.lx-flow-num { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.lx-flow-label { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+.lx-flow-arrow { color: var(--dsw-alias-label-tertiary); opacity: .5; padding: 0 1px; }
+
+.lx-bars { display: flex; align-items: flex-end; gap: 3px; height: 132px; }
+.lx-bar { flex: 1 1 0; min-width: 2px; border-radius: 3px; background: var(--dsw-alias-brand-primary); opacity: .85; transition: opacity .12s ease; }
+.lx-bar.is-zero { background: var(--dsw-alias-label-tertiary); opacity: .16; }
+.lx-bar:hover { opacity: 1; }
+.lx-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--dsw-alias-label-tertiary); margin-top: 6px; }
+.lx-trend-row { margin-bottom: 16px; }
+.lx-trend-row:last-child { margin-bottom: 0; }
+.lx-trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.lx-trend-name { font-size: 12px; color: var(--dsw-alias-label-primary); }
+.lx-trend-total { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+.lx-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lx-toolbar .lg-input { flex: 1 1 220px; min-width: 0; }
+
+.lx-scrim { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.26); backdrop-filter: blur(3px); }
+.lx-drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(430px, 92vw); z-index: 71; display: flex; flex-direction: column; box-sizing: border-box; background: var(--dsw-alias-bg-layer-2); border-left: 1px solid var(--dsw-alias-border-l1); box-shadow: -8px 0 30px rgba(0,0,0,.14); padding-top: 40px; }
+.lx-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 100px 14px 18px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.lx-drawer-title { font-size: 14px; font-weight: 650; }
+.lx-drawer-body { padding: 16px 18px 40px; overflow-y: auto; }
+.lx-group { font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--dsw-alias-label-tertiary); margin: 14px 0 8px; }
+.lx-group:first-child { margin-top: 0; }
+.lx-field { margin-bottom: 14px; }
+.lx-field-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lx-field-label { font-size: 12.5px; font-weight: 600; }
+.lx-field-hint { font-size: 11.5px; color: var(--dsw-alias-label-tertiary); margin-top: 3px; }
+.lx-field-ctl { margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.lx-divider { height: 1px; background: var(--dsw-alias-border-l1); margin: 6px 0 2px; }
+.lx-switch { position: relative; width: 40px; height: 24px; flex: 0 0 auto; display: inline-block; }
+.lx-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.lx-switch-track { position: absolute; inset: 0; border-radius: 999px; pointer-events: none; background: var(--dsw-alias-border-l2); transition: background-color .16s ease; }
+.lx-switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .16s ease; }
+.lx-switch input:checked ~ .lx-switch-track { background: var(--dsw-alias-brand-primary); }
+.lx-switch input:checked ~ .lx-switch-knob { transform: translateX(16px); }
 .lg-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .lg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
 .lg-tile { background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); border-radius: 16px; padding: 14px 16px; box-sizing: border-box; transition: background-color .16s ease, border-color .16s ease; }
@@ -1183,6 +1390,7 @@ window.__ModuleLoader__.load({
      * 手绘那版的箭头位置算错，15px 下会糊成一个小墨点。
      */
     const ICONS = {
+    settings: { viewBox: '0 0 24 24', d: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' },
       refresh: {
         viewBox: '0 0 24 24',
         fill: true,
@@ -1453,6 +1661,188 @@ window.__ModuleLoader__.load({
           : null,
         children);
     }
+    /** 状态条：一行紧凑关键指标，替代散落的小卡片。 */
+    function StatBar({ items }) {
+      const list = (Array.isArray(items) ? items : []).filter((item) => item !== null && item !== undefined);
+      if (list.length === 0) return null;
+      const cells = list.map((item, index) => {
+        const clickable = typeof item.onClick === 'function';
+        const props = {
+          key: item.label + index,
+          className: clickable ? 'lx-stat lx-stat-btn' : 'lx-stat',
+          title: item.hint ?? undefined,
+        };
+        if (clickable) { props.type = 'button'; props.onClick = item.onClick; }
+        const inner = [
+          h('div', { key: 'v', className: 'lx-stat-value', 'data-tone': item.tone ?? 'plain' }, item.value),
+          h('div', { key: 'l', className: 'lx-stat-label' }, item.label),
+        ];
+        return h(clickable ? 'button' : 'div', props, inner);
+      });
+      return h('div', { className: 'lx-statbar' }, cells);
+    }
+
+    /**
+     * 数据表：列定义驱动。列 = { key, label, width, align, render(row) }。
+     * 行操作放最后一列，默认低透明度，hover 才清晰（减少视觉噪音）。
+     */
+    function DataTable({ columns, rows, empty, rowKey }) {
+      const cols = Array.isArray(columns) ? columns : [];
+      const list = Array.isArray(rows) ? rows : [];
+      if (list.length === 0) return h('div', { className: 'lx-table-empty' }, empty ?? '—');
+      const headCells = cols.map((col) => {
+        const style = { textAlign: col.align ?? 'left' };
+        if (col.width !== undefined) style.width = col.width;
+        return h('th', { key: col.key, style }, col.label);
+      });
+      const bodyRows = list.map((row, index) => {
+        const cells = cols.map((col) => {
+          const style = { textAlign: col.align ?? 'left' };
+          const value = typeof col.render === 'function' ? col.render(row) : row[col.key];
+          return h('td', { key: col.key, className: col.className ?? undefined, style }, value);
+        });
+        const key = typeof rowKey === 'function' ? rowKey(row) : index;
+        return h('tr', { key }, cells);
+      });
+      const head = h('thead', null, h('tr', null, headCells));
+      const body = h('tbody', null, bodyRows);
+      const table = h('table', { className: 'lx-table' }, head, body);
+      return h('div', { className: 'lx-table-wrap' }, table);
+    }
+
+    /** 分区标题：替代卡片标题，用于页内分组。 */
+    function SectionTitle({ title, hint, actions }) {
+      const text = h('div', { className: 'lx-section-text' },
+        h('div', { key: 't', className: 'lx-section-title' }, title),
+        hint !== undefined && hint !== '' ? h('div', { key: 'h', className: 'lx-section-hint' }, hint) : null);
+      const side = actions !== undefined && actions !== null ? h('div', { className: 'lx-section-actions' }, actions) : null;
+      return h('div', { className: 'lx-section' }, text, side);
+    }
+    /**
+     * 设定抽屉：低频配置集中在一处（注入 / 语义 / 存储 / 维护）。
+     * 日常页面只留高频操作，配置不再和查看混在一起。
+     */
+    function SettingsDrawer({ t, open, onClose, busy, data, actions }) {
+      const [dir, setDir] = React.useState('');
+      if (open !== true) return null;
+      const injection = data?.injection ?? null;
+      const storage = data?.storage ?? null;
+      const stats = data?.semanticStats ?? null;
+      const injectionOn = injection?.enabled !== false;
+      const semanticOn = injection?.semantic === true;
+      const budget = Number(injection?.charBudget ?? 700);
+      const selectedModel = (() => {
+        const saved = injection?.semanticModel ?? null;
+        if (saved === null || saved === undefined) return '';
+        return String(saved.provider ?? '') + '|' + String(saved.model ?? '');
+      })();
+      const modelPairs = (() => {
+        const options = data?.semanticOptions ?? data?.injection?.semanticOptions ?? null;
+        const list = [{ value: '', label: t('semanticFollow') }];
+        const providers = Array.isArray(options) ? options : (options?.providers ?? []);
+        for (const provider of providers) {
+          const models = Array.isArray(provider.models) ? provider.models : [];
+          if (models.length === 0) {
+            list.push({ value: provider.id + '|', label: provider.label });
+            continue;
+          }
+          for (const model of models) {
+            const friendly = (provider.labels ?? {})[model];
+            const text = typeof friendly === 'string' && friendly !== '' ? friendly + ' · ' + model : model;
+            list.push({ value: provider.id + '|' + model, label: text });
+          }
+        }
+        return list;
+      })();
+
+      const sw = (checked, onChange) => h('span', { className: 'lx-switch' },
+        h('input', { type: 'checkbox', checked, disabled: busy !== '', onChange: (event) => onChange(event.target.checked) }),
+        h('span', { className: 'lx-switch-track' }),
+        h('span', { className: 'lx-switch-knob' }));
+
+      return [
+        h('div', { key: 'scrim', className: 'lx-scrim', onClick: onClose }),
+        h('aside', { key: 'drawer', className: 'lx-drawer' },
+          h('div', { className: 'lx-drawer-head' },
+            h('div', { className: 'lx-drawer-title' }, t('settingsTitle')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onClose }, t('detailClose'))),
+          h('div', { className: 'lx-drawer-body' },
+
+            h('div', { className: 'lx-group', key: 'g1' }, t('settingsInject')),
+            h('div', { className: 'lx-field', key: 'f1' },
+              h('div', { className: 'lx-field-head' },
+                h('div', null,
+                  h('div', { className: 'lx-field-label' }, t('injectEnabled')),
+                  h('div', { className: 'lx-field-hint' }, t('injectEnabledHint'))),
+                sw(injectionOn, (next) => actions.onInjection({ enabled: next })))),
+            h('div', { className: 'lx-field', key: 'f2' },
+              h('div', { className: 'lx-field-label' }, t('injectBudgetLabel')),
+              h('div', { className: 'lx-field-ctl' }, [400, 700, 1200].map((value) => h('button', {
+                key: value,
+                type: 'button',
+                className: value === budget ? 'lg-btn lg-btn-primary' : 'lg-btn',
+                disabled: busy !== '',
+                onClick: () => actions.onInjection({ charBudget: value }),
+              }, String(value)))),
+              h('div', { className: 'lx-field-hint' }, t('injectBudgetHint'))),
+
+            h('div', { className: 'lx-divider', key: 'd1' }),
+            h('div', { className: 'lx-group', key: 'g2' }, t('semanticToggle')),
+            h('div', { className: 'lx-field', key: 'f3' },
+              h('div', { className: 'lx-field-head' },
+                h('div', null,
+                  h('div', { className: 'lx-field-label' }, t('semanticShort')),
+                  h('div', { className: 'lx-field-hint' }, t('semanticHint'))),
+                sw(semanticOn, actions.onSemantic))),
+            h('div', { className: 'lx-field', key: 'f4' },
+              h('div', { className: 'lx-field-label' }, t('semanticChoice')),
+              h('div', { className: 'lx-field-ctl' },
+                h(Select, {
+                  value: selectedModel,
+                  options: modelPairs,
+                  onChange: (next) => {
+                    const sep = next.indexOf('|');
+                    const provider = next.slice(0, sep);
+                    const model = next.slice(sep + 1);
+                    actions.onSemanticChoice(provider === '' || model === '' ? null : { provider, model });
+                  },
+                  ariaLabel: t('semanticChoice'),
+                }))),
+            stats !== null && stats !== undefined && semanticOn
+              ? h('div', { className: 'lx-field', key: 'f5' },
+                h('div', { className: 'lx-field-hint' },
+                  stats.calls === 0
+                    ? t('semanticIdle')
+                    : t('semanticCalls')
+                      .replace('{n}', int(stats.calls))
+                      .replace('{ok}', int(stats.ok))
+                      .replace('{fail}', int(stats.failed))
+                      .replace('{to}', int(stats.timeout))))
+              : null,
+
+            h('div', { className: 'lx-divider', key: 'd2' }),
+            h('div', { className: 'lx-group', key: 'g3' }, t('storageTitle')),
+            h('div', { className: 'lx-field', key: 'f6' },
+              h('div', { className: 'lx-field-label' }, t('storageCurrentLabel')),
+              h('div', { className: 'lx-field-hint', style: { wordBreak: 'break-all' } }, String(storage?.dir ?? '—')),
+              h('div', { className: 'lx-field-ctl' },
+                h('input', { className: 'lg-input', style: { flex: '1 1 160px' }, placeholder: 'D:\\lingxi-memory', value: dir, onChange: (event) => setDir(event.target.value) }),
+                h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '' || dir.trim() === '', onClick: () => actions.onMigrate(dir.trim()) }, t('storageMigrate')))),
+
+            h('div', { className: 'lx-divider', key: 'd3' }),
+            h('div', { className: 'lx-group', key: 'g4' }, t('settingsMaintain')),
+            h('div', { className: 'lx-field-ctl', key: 'f7' },
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onAudit }, t('auditTitle')),
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onRepair }, t('repairTitle')),
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSelfcheck }, t('selfcheckTitle'))),
+            h('div', { className: 'lx-field-ctl', key: 'f8' },
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onExport }, t('exportTitle')),
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onReset }, t('resetTitle')))
+          ))
+      ];
+    }
+
+
 
     function Empty({ icon, title, hint }) {
       return h('div', { className: 'lg-empty' },
@@ -1744,309 +2134,194 @@ window.__ModuleLoader__.load({
 
     function OverviewTab({ t, derived, memory, live, injection, efficacy, evolution, scenes, quality, selfcheck, auditState, alerts, samples, busy, onSeed, onDetail, onFailures, onSelfcheck, onShowSamples }) {
       const health = memory?.health ?? null;
+      const hygiene = memory?.hygiene ?? null;
+      const coverage = efficacy?.failures?.coverage ?? null;
+      const trend = efficacy?.failures?.trend ?? [];
+      const attribution = efficacy?.attribution ?? null;
       const gate = derived?.gate ?? null;
-      const lessons = (derived?.lessons ?? []).slice(0, 4);
-      const failures = efficacy?.failures ?? null;
-      const metrics = efficacy?.metrics ?? null;
-      const compare = metrics?.compare ?? null;
-      const series = metrics?.series ?? [];
+      const lessons = derived?.lessons ?? [];
+      const holes = coverage?.holes ?? [];
+
+      /* ---------- 学习闭环：五个环节的实测数字 ---------- */
+      const flowSteps = [
+        { label: t('flowInject'), value: int(injection?.injected ?? 0) },
+        { label: t('flowHit'), value: int(injection?.hits ?? 0) },
+        { label: t('flowMiss'), value: int(injection?.misses ?? 0) },
+        { label: t('flowGuard'), value: int(injection?.guardDenied ?? 0) },
+        { label: t('flowPrune'), value: int((hygiene?.quarantined ?? 0) + (hygiene?.evicted ?? 0) + (hygiene?.demoted ?? 0) + (hygiene?.merged ?? 0)) },
+      ];
+
+      /* ---------- 复发治理表 ---------- */
+      const attrColumns = [
+        { key: 'scene', label: t('attrScene'), render: (row) => h('span', { className: 'lx-cell-main lx-cell-nowrap' }, row.tool + (row.code === '' ? '' : ' · ' + row.code)) },
+        { key: 'before', label: t('attrBeforeShort'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.before) },
+        { key: 'after', label: t('attrAfterShort'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.after) },
+        {
+          key: 'delta',
+          label: t('attrDeltaShort'),
+          align: 'right',
+          render: (row) => {
+            const before = Number(row.before ?? 0);
+            const after = Number(row.after ?? 0);
+            if (before <= 0) return h('span', { className: 'lx-cell-num' }, '—');
+            const ratio = Math.round(((after - before) / before) * 100);
+            return h(Chip, { kind: ratio < 0 ? 'ok' : 'warn', children: (ratio > 0 ? '+' : '') + String(ratio) + '%' });
+          },
+        },
+        { key: 'hits', label: t('attrHitShort'), align: 'right', className: 'lx-cell-num', render: (row) => (row.hits === undefined ? '—' : int(row.hits)) },
+      ];
+      const attrRows = (attribution?.pairs ?? []).filter((row) => Number(row.before ?? 0) > 0);
 
       return h('div', { className: 'lg-stack' },
 
-        (() => {
-          const status = health?.byStatus ?? {};
-          const candidates = int(memory?.pendingTotal ?? status.candidate ?? 0);
-          const active = int(status.active ?? 0);
-          const retired = int(status.retired ?? 0);
-          const hits = int(injection?.hits ?? 0);
-          const misses = int(injection?.misses ?? 0);
-          const warned = int(injection?.warned ?? 0);
-          const denied = int(gate?.guardDenied ?? 0);
-          const hygiene = memory?.hygiene ?? null;
-          const regressions = (efficacy?.regressions ?? []).length;
-          const stage = (title, lines) => h('div', { className: 'lg-loop-stage' },
-            h('div', { className: 'lg-loop-title' }, title),
-            lines.map((line, index) => {
-              if (line === null || line === undefined) return null;
-              const item = typeof line === 'string' ? { text: line } : line;
-              if (item === null || item === undefined) return null;
-              const clickable = typeof item.onClick === 'function';
-              return h('div', {
-                className: 'lg-loop-line' + (clickable ? ' lg-loop-click' : ''),
-                key: index,
-                role: clickable ? 'button' : undefined,
-                onClick: clickable ? item.onClick : undefined,
-              }, item.text);
-            }));
-          return h(Card, { title: t('loopTitle'), hint: t('loopHint') },
-            h('div', { className: 'lg-loop' },
-              stage(t('loopWrite'), [
-                {
-                  text: t('loopCandActive').replace('{c}', candidates).replace('{a}', active),
-                  onClick: () => onDetail(t('detailCandidates'), { status: 'candidate', limit: 100 }),
-                },
-                {
-                  text: t('loopRetired').replace('{n}', retired),
-                  onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }),
-                },
-              ]),
-              h('div', { className: 'lg-loop-arrow' }, '→'),
-              stage(t('loopUse'), [
-                {
-                  text: t('loopHitsMisses').replace('{h}', hits).replace('{m}', misses),
-                  onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }),
-                },
-                t('loopWarn').replace('{n}', warned),
-              ]),
-              h('div', { className: 'lg-loop-arrow' }, '→'),
-              stage(t('loopRank'), [
-                t('loopReliability'),
-                t('loopGuard').replace('{n}', denied),
-              ]),
-              h('div', { className: 'lg-loop-arrow' }, '→'),
-              stage(t('loopPrune'), [
-                hygiene === null
-                  ? '—'
-                  : {
-                      text: t('loopHygiene').replace('{q}', int(hygiene.quarantined ?? 0)).replace('{mg}', int(hygiene.merged ?? 0)),
-                      onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }),
-                    },
-                t('loopRegress').replace('{n}', int(regressions)),
-                int(injection?.autoActivated ?? 0) > 0 ? t('loopAutoActivated').replace('{n}', int(injection.autoActivated)) : null,
-              ])));
-        })(),
-
-        (() => {
-          const coverage = efficacy?.failures?.coverage ?? null;
-          if (coverage === null) return null;
-          const holes = coverage.holes ?? [];
-          return h(Card, { title: t('coverageTitle'), hint: t('coverageHint') },
-            h('div', { className: 'lg-metric-row' },
-              Metric({ label: t('coverageRatio').replace('{c}', int(coverage.covered)).replace('{t}', int(coverage.total)), value: coverage.ratio === null ? '—' : pct(coverage.ratio), onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) })),
-            holes.length === 0
-              ? h('div', { className: 'lg-status' }, t('coverageNone'))
-              : h('div', { className: 'lg-rows', style: { marginTop: 10 } }, holes.map((hole) =>
-                  h('div', { className: 'lg-row', key: hole.tool + '|' + hole.code },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, hole.tool + (hole.code === '' ? '' : ' · ' + hole.code)),
-                      h('div', { className: 'lg-row-meta' }, h('span', null, int(hole.sessions) + ' 会话 · ' + int(hole.count) + ' 次'))),
-                    h('div', { className: 'lg-row-side' },
-                      h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onSeed({ tool: hole.tool, code: hole.code, count: hole.count }) }, t('coverageSeed')))))));
-        })(),
-
-        (() => {
-          const trend = efficacy?.failures?.trend ?? [];
-          if (trend.length === 0) return null;
-          return h(Card, { title: t('trendTitle'), hint: t('trendHint') },
-            h('div', { className: 'lg-rows' }, trend.map((row) =>
-              h('div', { className: 'lg-row', key: row.key },
-                h('div', { className: 'lg-row-main' },
-                  h('div', { className: 'lg-row-title' }, String(row.key).replace('|', ' · ')),
-                  h(MiniBars, { points: row.points })),
-                h('div', { className: 'lg-row-side' }, h(Chip, { children: int(row.total) })))),
-            ));
-        })(),
-
-        (() => {
-          const list = Array.isArray(alerts) ? alerts : [];
-          if (list.length === 0) return null;
-          return h(Card, { title: t('alertTitle') },
-            h('div', { className: 'lg-rows' }, list.map((alert, index) =>
+        /* 告警：只有异常时出现 */
+        (Array.isArray(alerts) ? alerts : []).length > 0
+          ? h(Card, { title: t('alertTitle') }, h('div', { className: 'lg-rows' }, alerts.map((alert, index) =>
               h('div', { className: 'lg-row', key: alert.kind + index },
-                h('div', { className: 'lg-row-main' },
-                  h('div', { className: 'lg-row-title' },
-                    alert.kind === 'demote-spike' ? t('alertDemote').replace('{n}', int(alert.count))
-                      : alert.kind === 'quarantine-spike' ? t('alertQuarantine').replace('{n}', int(alert.count))
-                      : t('alertCoverage').replace('{n}', int(alert.count))))))));
-        })(),
+                h('div', { className: 'lg-row-main' }, h('div', { className: 'lg-row-title' },
+                  alert.kind === 'demote-spike' ? t('alertDemote').replace('{n}', int(alert.count))
+                    : alert.kind === 'quarantine-spike' ? t('alertQuarantine').replace('{n}', int(alert.count))
+                    : alert.kind === 'audit-failed' ? t('alertAudit')
+                    : t('alertCoverage').replace('{n}', int(alert.count))))))))
+          : null,
 
-        h(Card, { title: t('selfcheckTitle') },
-          (() => {
-            const info = selfcheck ?? null;
-            if (info === null) return h('div', { className: 'lg-status' }, t('selfcheckNever'));
-            const failed = (info.suites ?? []).filter((suite) => suite.ok !== true);
-            return h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } },
-              h(Chip, { kind: info.ok === true ? 'ok' : 'warn', children: info.ok === true ? t('selfcheckOk') : t('selfcheckBad') }),
-              h('span', { className: 'lg-card-hint' }, int(info.suites?.length ?? 0) + ' 组 · ' + int(info.ms ?? 0) + 'ms'),
-              failed.length > 0 ? h('span', { className: 'lg-card-hint' }, failed.map((suite) => suite.name).join('、')) : null,
-              (() => {
-                const audit = auditState ?? null;
-                if (audit === null) return null;
-                return h(Chip, { kind: audit.ok === true ? 'ok' : 'warn', children: audit.ok === true ? t('auditOk') : t('auditBad') });
-              })(),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSelfcheck() }, t('selfcheckTitle')));
-          })()),
+        /* 1. 学习闭环 */
+        h(Card, { title: t('loopTitle'), hint: t('loopHint') },
+          h('div', { className: 'lx-flow' }, flowSteps.map((step, index) => [
+            index > 0 ? h('span', { className: 'lx-flow-arrow', key: 'a' + index }, '→') : null,
+            h('div', { className: 'lx-flow-step', key: step.label },
+              h('span', { className: 'lx-flow-num' }, step.value),
+              h('span', { className: 'lx-flow-label' }, step.label)),
+          ]))),
 
-        // 纠错频率：独立卡片，14 天柱状图
-        h(Collapsible, { title: t('analyticsTitle') },
-        (() => {
-          const corrections = efficacy?.failures?.corrections ?? null;
-          if (corrections === null || corrections.totalMessages === 0) return null;
-          const fmt = (value) => (value === null || value === undefined ? '—' : String(value) + '%');
-          return h(Card, { title: t('corrTitle'), hint: t('corrHint') },
-            h(CorrBars, { series: corrections.series, t }),
-            h('div', { style: { marginTop: 8, display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' } },
-              h('span', { className: 'lg-card-hint' }, t('corrRecent') + ' ' + fmt(corrections.recent?.ratePer100)),
-              h('span', { className: 'lg-card-hint' }, t('corrPrevious') + ' ' + fmt(corrections.previous?.ratePer100)),
-              h('span', { className: 'lg-card-hint' }, t('corrRate') + ' ' + fmt(corrections.ratePer100) + ' · ' + int(corrections.totalCorrections) + '/' + int(corrections.totalMessages))),
-            (() => {
-              const recent = metrics?.compare?.recent ?? {};
-              const previous = metrics?.compare?.previous ?? {};
-              const ratio = (bucket) => {
-                const n = Number(bucket?.corrections ?? 0);
-                if (n <= 0) return null;
-                return Math.round((Number(bucket?.correctionPenalized ?? 0) / n) * 10) / 10;
-              };
-              const nowRatio = ratio(recent);
-              const prevRatio = ratio(previous);
-              const scope = t('corrScope')
-                .replace('{n}', int(recent.corrections ?? 0))
-                .replace('{m}', int(recent.correctionPenalized ?? 0));
-              if (nowRatio === null) return h('div', { className: 'lg-card-hint', style: { marginTop: 4 } }, scope);
-              return h('div', { className: 'lg-card-hint', style: { marginTop: 4 } },
-                scope + ' · ' + t('corrPrecision')
-                  .replace('{n}', String(nowRatio))
-                  .replace('{m}', prevRatio === null ? '—' : String(prevRatio)));
-            })());
-        })(),
+        /* 2. 14 天趋势（主视觉） */
+        trend.length > 0
+          ? h(Card, { title: t('trendTitle'), hint: t('trendHint') },
+            h('div', null, trend.map((row) => {
+              const points = Array.isArray(row.points) ? row.points : [];
+              const max = Math.max(1, ...points.map((p) => Number(p.count ?? 0)));
+              const bars = points.map((point, index) => {
+                const value = Number(point.count ?? 0);
+                const pctHeight = value === 0 ? 2 : Math.max(6, Math.round((value / max) * 100));
+                return h('div', {
+                  key: point.day + index,
+                  className: value === 0 ? 'lx-bar is-zero' : 'lx-bar',
+                  style: { height: pctHeight + '%' },
+                  title: point.day + ' · ' + value + ' ' + t('times'),
+                });
+              });
+              return h('div', { className: 'lx-trend-row', key: row.key },
+                h('div', { className: 'lx-trend-head' },
+                  h('span', { className: 'lx-trend-name' }, String(row.key).replace('|', ' · ')),
+                  h('span', { className: 'lx-trend-total' }, int(row.total ?? 0) + ' ' + t('times'))),
+                h('div', { className: 'lx-bars' }, bars));
+            })),
+            h('div', { className: 'lx-axis' }, [
+              h('span', { key: 'a' }, String(trend[0]?.points?.[0]?.day ?? '').slice(5)),
+              h('span', { key: 'b' }, String(trend[0]?.points?.[Math.floor((trend[0]?.points?.length ?? 1) / 2)]?.day ?? '').slice(5)),
+              h('span', { key: 'c' }, String(trend[0]?.points?.[(trend[0]?.points?.length ?? 1) - 1]?.day ?? '').slice(5)),
+            ]))
+          : null,
 
-        // 疗效趋势：复发率 + 7 日注入/命中/证伪 + 14 天柱状
-        h(Card, { title: t('efficacyTitle'), hint: t('dayAxis') },
-          failures !== null && failures.distinctKeys > 0
-            ? h('div', { className: 'lg-metric-row' },
-                Metric({ label: t('effRepeatRate'), value: pct(failures.repeatRate) }),
-                Metric({ label: t('effFailures'), value: int(failures.totalFailures) }),
-                Metric({ label: t('effDistinct'), value: int(failures.distinctKeys) }),
-                Metric({ label: t('effInject7'), value: int(compare?.recent?.injected ?? 0) }),
-                Metric({ label: t('effHits7'), value: int(compare?.recent?.hits ?? 0) }),
-                Metric({ label: t('effMiss7'), value: int(compare?.recent?.misses ?? 0) }))
-            : h(Empty, { icon: 'spark', title: t('effNone') }),
-          series.length > 0
-            ? h('div', { style: { marginTop: 14 } },
-                h(Sparkline, { points: series }),
-                h('div', { style: { marginTop: 6, display: 'flex', gap: 14 } },
-                  h('span', { className: 'lg-card-hint' }, t('legendInjected')),
-                  h('span', { className: 'lg-card-hint' }, t('legendHits'))))
-            : null,
-          Array.isArray(failures?.suggestions) && failures.suggestions.length > 0
-            ? h('div', { style: { marginTop: 12 } },
-                h('div', { className: 'lg-card-hint', style: { marginBottom: 6 } }, t('effSuggestTitle')),
-                failures.suggestions.slice(0, 4).map((item) =>
-                  h('div', { className: 'lg-row', key: item.key },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, item.tool + (item.code === '' ? '' : ' · ' + item.code)),
-                      h('div', { className: 'lg-row-meta' }, h('span', null, item.count + ' ×'))),
-                    h('div', { className: 'lg-row-side' },
-                      h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onSeed(item) }, t('effSeed'))))))
-            : null),
+        /* 3. 复发治理 */
+        attrRows.length > 0
+          ? h(Card, { title: t('attrTitle'), hint: t('attrHint') },
+            h(DataTable, {
+              columns: attrColumns,
+              rows: attrRows.slice(0, 8),
+              rowKey: (row) => String(row.tool) + '|' + String(row.code),
+              empty: t('attrEmpty'),
+            }))
+          : null,
 
-        // 进化状态：当前参数组、历史得分、选择依据
-        h(Card, { title: t('evolveTitle'), hint: evolution?.currentArmId ?? '—' },
-          evolution === null || evolution === undefined
-            ? h('div', { className: 'lg-status' }, t('evolveIdle'))
-            : h('div', null,
-                h('div', { className: 'lg-metric-row' },
-                  Metric({ label: t('evolveTrials'), value: int(evolution.trials ?? 0), onClick: () => onDetail(t('detailHits'), { minHits: 2, limit: 100 }) }),
-                  Metric({ label: t('evolveFitness'), value: int(evolution.lastFitness ?? 0) }),
-                  Metric({ label: t('evolveBest'), value: evolution.bestArmId ?? '—' }),
-                  Metric({ label: t('evolveBestMean'), value: evolution.bestMean === null || evolution.bestMean === undefined ? '—' : String(evolution.bestMean) })),
-                h('div', { style: { marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } },
-                  h('span', { className: 'lg-card-hint' }, t('evolveScenes')),
-                  Object.entries(scenes ?? {}).map(([scene, info]) => {
-                    const stat = (efficacy?.failures?.scenes ?? []).find((entry) => entry.scene === scene);
-                    const parts = [scene, int(info?.charBudget ?? 0)];
-                    if (stat !== undefined) parts.push('复发 ' + pct(stat.repeatRate));
-                    if (stat !== undefined && Number(stat.lessonFrom ?? 0) > 0) parts.push('治理 ' + int(stat.before ?? 0) + '→' + int(stat.after ?? 0));
-                    const label = parts.join(' · ');
-                    return h(Chip, { key: scene, kind: stat !== undefined && stat.repeatRate >= 0.6 ? 'warn' : 'mute', children: label });
-                  })),
-                h('div', { style: { marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 } },
-                  (evolution.arms ?? []).map((arm) =>
-                    h(Chip, {
-                      key: arm.id,
-                      kind: arm.id === evolution.currentArmId ? 'accent' : 'mute',
-                      children: arm.label + ' · ' + (arm.n === 0 ? '未试' : arm.mean),
-                    })))))
+        /* 4. 记忆覆盖 */
+        coverage !== null && Number(coverage.total ?? 0) > 0
+          ? h(Card, { title: t('coverageTitle'), hint: t('coverageHint') },
+            h('div', { className: 'lx-section' },
+              h('div', { className: 'lx-section-title' }, t('coverageRatio').replace('{c}', int(coverage.covered)).replace('{t}', int(coverage.total))),
+              h('span', { className: 'lx-cell-num' }, coverage.ratio === null ? '—' : pct(coverage.ratio))),
+            holes.length === 0
+              ? h('div', { className: 'lx-table-empty' }, t('coverageNone'))
+              : h(DataTable, {
+                columns: [
+                  { key: 'scene', label: t('attrScene'), render: (row) => h('span', { className: 'lx-cell-main lx-cell-nowrap' }, row.tool + (row.code === '' ? '' : ' · ' + row.code)) },
+                  { key: 'sessions', label: t('coverageSessions'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.sessions) },
+                  { key: 'count', label: t('coverageCount'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.count) },
+                  { key: 'act', label: '', align: 'right', render: (row) => h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSeed({ tool: row.tool, code: row.code, count: row.count }) }, t('coverageSeed')) },
+                ],
+                rows: holes,
+                rowKey: (row) => String(row.tool) + '|' + String(row.code),
+                empty: t('coverageNone'),
+              }))
+          : null,
 
-        ,
-        h(Card, { title: t('qualityTitle'), hint: t('qualityHint') },
-          quality === null || quality === undefined
-            ? h('div', { className: 'lg-status' }, '—')
-            : h('div', { className: 'lg-metric-row' },
-                Metric({
-                  label: t('qualityInjected'),
-                  value: quality.injected?.failureRate === null || quality.injected?.failureRate === undefined ? '—' : pct(quality.injected.failureRate),
-                  caption: t('qualitySessions').replace('{n}', int(quality.injected?.sessions ?? 0)),
-                }),
-                Metric({
-                  label: t('qualityEmpty'),
-                  value: quality.empty?.failureRate === null || quality.empty?.failureRate === undefined ? '—' : pct(quality.empty.failureRate),
-                  caption: t('qualitySessions').replace('{n}', int(quality.empty?.sessions ?? 0)),
-                })),
-            Array.isArray(quality.buckets) && quality.buckets.some((bucket) => bucket.sessions > 0)
-              ? h('div', { className: 'lg-rows', style: { marginTop: 10 } },
-                  quality.buckets.map((bucket) => h('div', { className: 'lg-row', key: bucket.key },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, t(bucket.key === 'none' ? 'qualBucketNone' : bucket.key === 'small' ? 'qualBucketSmall' : 'qualBucketLarge')),
-                      h('div', { className: 'lg-row-meta' },
-                        h('span', null, int(bucket.failures) + ' / ' + int(bucket.calls)))),
-                    h('div', { className: 'lg-row-side' }, h(Chip, { kind: bucket.failureRate === null ? 'mute' : 'ok', children: bucket.failureRate === null ? '—' : pct(bucket.failureRate) })))))
-              : null),
-
+        /* 折叠：系统状态（回归 / 闸门 / 实时 / 质量 / 进化） */
         h(Collapsible, { title: t('sysTitle') },
-        ),
-        h(Card, { title: t('gateTitle'), hint: t('liveEvolution') },
-          gate === null
-            ? h('div', { className: 'lg-status' }, '—')
-            : h('div', { className: 'lg-metric-row' },
-                Metric({ label: t('gateInjected'), value: int(gate.injected) }),
-                Metric({ label: t('gateWarned'), value: int(gate.warned) }),
-                Metric({ label: t('adviceAdopted'), value: int(gate.adviceAdopted ?? 0) }),
-                Metric({ label: t('adviceIgnored'), value: int(gate.adviceIgnored ?? 0) }),
-                (() => {
-                  const recent = efficacy?.metrics?.compare?.recent ?? {};
-                  const a = Number(recent.adviceAdopted ?? 0);
-                  const i = Number(recent.adviceIgnored ?? 0);
-                  if (a + i === 0) return null;
-                  const rate = Math.round((a / (a + i)) * 1000) / 10;
-                  return h('span', { className: 'lg-card-hint', style: { alignSelf: 'center' } },
-                    t('advice7d').replace('{a}', int(a)).replace('{i}', int(i)).replace('{r}', String(rate) + '%'));
-                })(),
-                (() => {
-                  const byCode = gate?.adviceByCode ?? {};
-                  const low = Object.entries(byCode)
-                    .filter(([, value]) => Number(value?.rate ?? 100) < 50)
-                    .sort((a, b) => (b[1].ignored + b[1].adopted) - (a[1].ignored + a[1].adopted))
-                    .slice(0, 3);
-                  if (low.length === 0) return null;
-                  return h('span', { className: 'lg-card-hint', style: { alignSelf: 'center' } },
-                    t('adviceLow').replace('{list}', low.map(([code, value]) => code + ' ' + int(value.adopted) + '/' + int(value.adopted + value.ignored)).join('、')));
-                })(),
-                Metric({ label: t('gateCaptured'), value: int(gate.captured), onClick: () => onDetail(t('detailCaptured'), { source: 'tool-failure', limit: 100 }) }),
-                Metric({ label: t('gateRepeat'), value: int(gate.repeatFailures), onClick: () => onFailures(t('detailFailures')) }),
-                Metric({ label: t('gateHits'), value: int(gate.hits), onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) }),
-                Metric({ label: t('gateMisses'), value: int(gate.misses), onClick: () => onDetail(t('detailMisses'), { minMisses: 1, limit: 100 }) }))),
-        // 闸门与纠错：注入、同轮提示、捕获、加强、重复失败
-        // 指标格 + 实时会话
-        h('div', { className: 'lg-tiles' },
-          h(Tile, { label: t('memoryTotal'), value: int(health?.total ?? 0), note: health ? `${int(health.byStatus?.active ?? 0)} ${t('active')}` : undefined }),
-          h(Tile, { label: t('memoryPending'), value: int(memory?.pendingTotal ?? memory?.pending?.length ?? 0) }),
-          h(Tile, { label: t('liveSessions'), value: int(live?.sessions ?? 0) }),
-          h(Tile, { label: t('liveToolErrors'), value: int(live?.toolErrors ?? 0) }),
-          h(Tile, { label: t('conflicts'), value: int(health?.contradictionPairs ?? 0) })),
 
-        h(Card, { title: t('liveTitle'), hint: t('liveSampled').replace('{n}', int(live?.sampled ?? 0)) },
-          h('div', { className: 'lg-metric-row' },
-            Metric({ label: t('liveSessions'), value: int(live?.sessions ?? 0) }),
-            Metric({ label: t('liveTurns'), value: int(live?.turns ?? 0) }),
-            Metric({ label: t('liveToolCalls'), value: int(live?.toolCalls ?? 0) }),
-            Metric({ label: t('liveToolErrors'), value: int(live?.toolErrors ?? 0) }))),
+          h('div', { className: 'lx-section' },
+            h('div', { className: 'lx-section-title' }, t('selfcheckTitle')),
+            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSelfcheck() }, t('selfcheckRun'))),
+          selfcheck === null || selfcheck === undefined
+            ? h('div', { className: 'lx-table-empty' }, t('selfcheckNever'))
+            : h('div', { className: 'lg-status' }, [
+                h(Chip, { kind: selfcheck.ok === true ? 'ok' : 'warn', key: 's' }, selfcheck.ok === true ? t('selfcheckOk') : t('selfcheckBad')),
+                h('span', { key: 'n', className: 'lg-card-hint' }, int(selfcheck.suites?.length ?? 0) + ' · ' + int(selfcheck.ms ?? 0) + 'ms'),
+                auditState !== null && auditState !== undefined
+                  ? h(Chip, { kind: auditState.ok === true ? 'ok' : 'warn', key: 'a' }, auditState.ok === true ? t('auditOk') : t('auditBad'))
+                  : null,
+              ]),
 
-        ),
+          gate !== null
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('gateTitle')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'g1', className: 'lg-card-hint' }, t('gateGuardDenied') + ' ' + int(gate.guardDenied ?? 0)),
+                  h('span', { key: 'g2', className: 'lg-card-hint' }, t('adviceAdopted') + ' ' + int(gate.adviceAdopted ?? 0)),
+                  h('span', { key: 'g3', className: 'lg-card-hint' }, t('adviceIgnored') + ' ' + int(gate.adviceIgnored ?? 0)),
+                ]))
+            : null,
+
+          live !== null && live !== undefined
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('liveTitle')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'l1', className: 'lg-card-hint' }, t('liveSessions') + ' ' + int(live.sessions ?? 0)),
+                  h('span', { key: 'l2', className: 'lg-card-hint' }, t('liveTurns') + ' ' + int(live.turns ?? 0)),
+                  h('span', { key: 'l3', className: 'lg-card-hint' }, t('liveToolErrors') + ' ' + int(live.toolErrors ?? 0)),
+                ]))
+            : null,
+
+          quality !== null && quality !== undefined
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('qualityTitle')),
+                h('div', { className: 'lx-section-actions' }, (quality.buckets ?? []).map((bucket) =>
+                  h('span', { key: bucket.key, className: 'lg-card-hint' }, String(bucket.key) + ' ' + int(bucket.sessions ?? 0) + ' · ' + (bucket.failureRate === null ? '—' : pct(bucket.failureRate))))))
+            : null,
+
+          evolution !== null && evolution !== undefined
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('evolveTitle')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'e1', className: 'lg-card-hint' }, t('evolveTrials') + ' ' + int(evolution.trials ?? 0)),
+                  h('span', { key: 'e2', className: 'lg-card-hint' }, String(evolution.bestArmId ?? '—')),
+                ]))
+            : null,
+
+          samples !== undefined && (samples ?? []).length > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('injectSamplesTitle')),
+                h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onShowSamples(samples ?? []) }, t('injectFullText')))
+            : null,
+
+          lessons.length > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('liveLessons')),
+                h('div', { className: 'lx-section-actions' },
+                  h('span', { className: 'lg-card-hint' }, int(lessons.length) + ' ' + t('times')),
+                  h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) }, t('detailOpen'))))
+            : null),
       );
     }
-
-    /* ================================================================ 记忆 */
 
     function memoryMeta(t, record) {
       const parts = [];
@@ -2096,146 +2371,88 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, semantic, onSemantic, onSemanticChoice, semanticChoice, setSemanticChoice, semanticOptions, semanticStats, onDecide, onPromote, onForget, onInjection, onHygiene, onDetail, onReset, onPurge, onExport, onImport, onImportError, search, onSelfcheck, onDeleteOne, onAudit, onRepair, storage, onMigrate }) {
-      const [query, setQuery] = React.useState(() => readUsage().lastSearch);
-      const [result, setResult] = React.useState(null);
-      const [loading, setLoading] = React.useState(false);
-      const [error, setError] = React.useState(null);
-      const [showAll, setShowAll] = React.useState(false);
-      const [purgeStatus, setPurgeStatus] = React.useState('candidate');
-      const [browseStatus, setBrowseStatus] = React.useState('active');
-      const [browseList, setBrowseList] = React.useState(null);
-
-      const loadBrowse = React.useCallback(async (status) => {
-        const query = (status ?? '') === '' ? '?limit=8' : '?status=' + encodeURIComponent(status) + '&limit=8';
-        try {
-          const body = await requestJson('lingxi/memory/list' + query);
-          setBrowseList(body.items ?? []);
-        } catch {
-          setBrowseList([]);
-        }
-      }, []);
-
-      React.useEffect(() => {
-        loadBrowse(browseStatus);
-      }, [browseStatus, loadBrowse]);
-      const [storageDir, setStorageDir] = React.useState('');
-      const [purgeKind, setPurgeKind] = React.useState('');
-      const [purgeDays, setPurgeDays] = React.useState('0');
-      const [purgeQ, setPurgeQ] = React.useState('');
-      const [purgeArmed, setPurgeArmed] = React.useState(false);
-      const purgeFilter = () => ({
-        status: purgeStatus === '' ? '' : purgeStatus,
-        kind: purgeKind,
-        q: purgeQ,
-        olderThanDays: Number(purgeDays) || 0,
-      });
-      const pending = memory?.pending ?? [];
-      const modelPending = pending.filter(
-        (record) => ((record.provenance ?? [])[0]?.source ?? '') === 'model-tool',
-      );
-      // 模型写入的候选有独立卡片，这里不重复展示。
-      const queuePending = pending.filter((record) => ((record.provenance ?? [])[0]?.source ?? '') !== 'model-tool');
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats }) {
       const health = memory?.health ?? null;
-      const shownResults = result === null ? [] : noiseVisible(result.items ?? [], showAll);
+      const hygiene = memory?.hygiene ?? null;
+      const pending = memory?.pending ?? [];
+      const [query, setQuery] = React.useState('');
+      const [status, setStatus] = React.useState('active');
+      const [kind, setKind] = React.useState('');
+      const [list, setList] = React.useState(null);
+      const [listTotal, setListTotal] = React.useState(0);
 
-      const submit = async (value) => {
-        setLoading(true);
-        setError(null);
+      const load = React.useCallback(async () => {
+        const parts = ["limit=60"];
+        if (status !== '') parts.push('status=' + encodeURIComponent(status));
+        if (kind !== '') parts.push('kind=' + encodeURIComponent(kind));
+        if (query.trim() !== '') parts.push('q=' + encodeURIComponent(query.trim()));
         try {
-          const params = new URLSearchParams({ q: value, limit: '20' });
-          if (context?.sessionId) params.set('sessionId', context.sessionId);
-          if (context?.workspaceId) params.set('workspaceId', context.workspaceId);
-          const body = await getJson(`${MEMORY}/search?${params.toString()}`);
-          setResult(body);
-          writeUsage({ lastSearch: value });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : String(err));
-        } finally {
-          setLoading(false);
+          const body = await getJson('lingxi/memory/list?' + parts.join('&'));
+          const items = Array.isArray(body.items) ? body.items : [];
+          setList(items);
+          setListTotal(items.length);
+        } catch {
+          setList([]);
+          setListTotal(0);
         }
-      };
+      }, [status, kind, query]);
 
-      const kinds = health?.byKind ?? {};
-      const statuses = health?.byStatus ?? {};
+      React.useEffect(() => { load(); }, [status, kind]);
+
+      const columns = [
+        { key: 'text', label: t('colContent'), width: '40%', render: (row) => h('span', { className: 'lx-cell-main' }, row.text) },
+        { key: 'kind', label: t('colKind'), render: (row) => h(Chip, { kind: 'accent', children: t(KIND_LABEL[row.kind] ?? 'kindFact') }) },
+        { key: 'status', label: t('colStatus'), render: (row) => h(Chip, { kind: row.status === 'active' ? 'ok' : row.status === 'retired' ? 'mute' : 'warn', children: String(row.status ?? '') }) },
+        { key: 'sharing', label: t('colSharing'), render: (row) => h('span', { className: 'lg-card-hint' }, String(row.sharing ?? 'private')) },
+        { key: 'hits', label: t('colHits'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.hitCount ?? 0) },
+        {
+          key: 'act',
+          label: '',
+          align: 'right',
+          width: '150px',
+          render: (row) => {
+            const isCandidate = String(row.status ?? '') === 'candidate';
+            const buttons = [];
+            if (isCandidate) {
+              buttons.push(h('button', { key: 'a', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(row.id, 'accept') }, t('accept')));
+              buttons.push(h('button', { key: 'r', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(row.id, 'retire') }, t('retire')));
+            } else {
+              buttons.push(h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('lifeTitle'), { status: row.status, limit: 100 }) }, t('detailOpen')));
+            }
+            buttons.push(h('button', { key: 'x', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDeleteOne(row.id) }, t('deleteOne')));
+            return h('div', { className: 'lx-actions' }, buttons);
+          },
+        },
+      ];
 
       return h('div', { className: 'lg-stack' },
-        h('div', { className: 'lg-tiles' },
-          h(Tile, { label: t('total'), value: int(health?.total ?? 0) }),
-          h(Tile, { label: t('active'), value: int(statuses.active ?? 0) }),
-          h(Tile, { label: t('memoryPending'), value: int(statuses.candidate ?? 0) }),
-          h(Tile, { label: t('avgConfidence'), value: pct(health?.averageEffectiveConfidence ?? 0) }),
-          h(Tile, { label: t('size'), value: bytes(health?.bytes ?? 0) })),
 
-        context?.sessionId ? null : h('div', { className: 'lg-status' }, t('contextNote')),
-
-        h(Card, { title: t('memorySearch'), hint: t('localOnly') },
-          h('div', { className: 'lg-search' },
+        /* 工具栏：搜索 + 筛选 */
+        h(Card, null,
+          h('div', { className: 'lx-toolbar' },
             h('input', {
               className: 'lg-input',
               type: 'search',
               value: query,
               placeholder: t('searchPlaceholder'),
               onChange: (event) => setQuery(event.target.value),
-              onKeyDown: (event) => {
-                if (event.key === 'Enter') submit(query);
-              },
+              onKeyDown: (event) => { if (event.key === 'Enter') load(); },
             }),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: loading, onClick: () => submit(query) }, t('searchAction'))),
-          result === null
-            ? h('div', { className: 'lg-status' }, t('searchEmpty'))
-            : result.abstain === true
-              ? h('div', { className: 'lg-status' }, t('abstainHint'))
-              : h('div', { className: 'lg-status' },
-                  h('span', { className: 'lg-row-meta' },
-                    h(Chip, { children: `${int(result.items?.length ?? 0)}` }),
-                    h(Chip, { children: `${int(result.chars ?? 0)} chars` }))),
-          error !== null ? h('div', { className: 'lg-status lg-status-error' }, error) : null),
-
-        result !== null && shownResults.length > 0
-          ? h(Card, { title: t('injectLabel'), hint: t('injectHint').replace('{n}', int(shownResults.length)).replace('{chars}', int(result.chars ?? 0)) },
-              h(NoiseHint, { t, items: result.items ?? [], showAll, onToggle: () => setShowAll(!showAll) }),
-              h('div', null, shownResults.map((record) => h(MemoryRow, { t, key: record.id, record, actions: h(MemoryActions, { t, record, onPromote, onForget, onDelete: onDeleteOne }) }))),
-              h('div', { className: 'lg-block' }, result.block !== '' ? result.block : '—'))
-          : result !== null && result.abstain !== true
-            ? h(Card, null, h(Empty, { icon: 'memory', title: t('noResults') }))
-            : null,
-
-        h(Card, { title: t('modelPendingTitle') + (Number(memory?.modelPendingTotal ?? 0) > 0 ? '（' + int(memory.modelPendingTotal) + '）' : ''), hint: t('modelPendingHint') },
-          modelPending.length === 0
-            ? h('div', { className: 'lg-status' }, t('modelPendingNone'))
-            : h('div', null, modelPending.map((record) =>
-                h('div', { className: 'lg-row', key: 'model-' + record.id },
-                  h('div', { className: 'lg-row-main' },
-                    h('div', { className: 'lg-row-title' }, record.text),
-                    h('div', { className: 'lg-row-meta' },
-                      h(Chip, { kind: 'accent', children: t(KIND_LABEL[record.kind] ?? 'kindFact') }),
-                      h(Chip, { children: t('sourceModel') }),
-                      h(Chip, { kind: 'mute', children: record.sharing ?? 'private' }))),
-                  h('div', { className: 'lg-row-side' },
-                    h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onDecide(record.id, 'accept') }, t('accept')),
-                    h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(record.id, 'retire') }, t('retire')))))),
-
-        h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
-        h(Card, { title: t('purgeTitle'), hint: t('purgeHint') },
-          h('div', { className: 'lg-form' },
-            h('div', { className: 'lg-field' },
-              h('span', { className: 'lg-field-label' }, t('purgeStatus')),
+            h('div', { className: 'lg-field', style: { minWidth: 130 } },
               h(Select, {
-                value: purgeStatus,
+                value: status,
                 options: [
-                  { value: '', label: t('purgeAll') },
-                  { value: 'candidate', label: t('statusCandidate') },
+                  { value: '', label: t('browseStatusAll') },
                   { value: 'active', label: t('statusActive') },
+                  { value: 'candidate', label: t('statusCandidate') },
                   { value: 'retired', label: t('statusRetired') },
                 ],
-                onChange: (next) => { setPurgeStatus(next); setPurgeArmed(false); },
+                onChange: (next) => setStatus(next),
                 ariaLabel: t('purgeStatus'),
               })),
-            h('div', { className: 'lg-field' },
-              h('span', { className: 'lg-field-label' }, t('purgeKind')),
+            h('div', { className: 'lg-field', style: { minWidth: 130 } },
               h(Select, {
-                value: purgeKind,
+                value: kind,
                 options: [
                   { value: '', label: t('purgeAll') },
                   { value: 'constraint', label: t(KIND_LABEL.constraint) },
@@ -2244,436 +2461,291 @@ window.__ModuleLoader__.load({
                   { value: 'lesson', label: t(KIND_LABEL.lesson) },
                   { value: 'skill', label: t(KIND_LABEL.skill) },
                 ],
-                onChange: (next) => { setPurgeKind(next); setPurgeArmed(false); },
+                onChange: (next) => setKind(next),
                 ariaLabel: t('purgeKind'),
               })),
-            h('div', { className: 'lg-field' },
-              h('span', { className: 'lg-field-label' }, t('purgeDays')),
-              h('input', { className: 'lg-input', type: 'number', min: 0, inputMode: 'numeric', value: purgeDays, onChange: (event) => { setPurgeDays(event.target.value); setPurgeArmed(false); } })),
-            h('div', { className: 'lg-field' },
-              h('span', { className: 'lg-field-label' }, t('purgeQ')),
-              h('input', { className: 'lg-input', type: 'text', placeholder: '…', value: purgeQ, onChange: (event) => { setPurgeQ(event.target.value); setPurgeArmed(false); } }))),
-          h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPurge(purgeFilter(), true) }, t('purgePreview')),
-            h('button', {
-              type: 'button',
-              className: 'lg-btn',
-              disabled: busy !== '',
-              onClick: () => {
-                if (!purgeArmed) { setPurgeArmed(true); return; }
-                setPurgeArmed(false);
-                onPurge(purgeFilter(), false);
-              },
-            }, purgeArmed ? t('purgeArmed') : t('purgeRun')),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onExport() }, t('exportTitle')),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onSelfcheck() }, t('selfcheckTitle')),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onAudit() }, t('auditTitle')),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onRepair() }, t('repairTitle')),
-            h('label', { className: 'lg-btn lg-btn-ghost', style: { cursor: 'pointer' } },
-              t('importTitle'),
-              h('input', {
-                type: 'file',
-                accept: 'application/json',
-                style: { display: 'none' },
-                onChange: (event) => {
-                  const file = event.target.files?.[0];
-                  if (file === undefined) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    try {
-                      onImport(JSON.parse(String(reader.result ?? '{}')));
-                    } catch (error) {
-                      onImportError(error instanceof Error ? error.message : String(error));
-                    }
-                  };
-                  reader.readAsText(file);
-                  event.target.value = '';
+            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', onClick: () => load() }, t('searchAction')))),
+
+        /* 记忆清单 */
+        h(SectionTitle, {
+          title: t('memoryListTitle'),
+          hint: list === null
+            ? '…'
+            : t('memoryListHint').replace('{n}', int(listTotal)).replace('{total}', int(health?.total ?? 0)),
+          actions: h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onExport() }, t('exportTitle')),
+        }),
+        h(Card, null,
+          h(DataTable, {
+            columns,
+            rows: list ?? [],
+            rowKey: (row) => row.id,
+            empty: list === null ? '…' : t('noResults'),
+          })),
+
+        /* 待确认队列 */
+        h(Collapsible, { title: t('pendingQueue') + ' · ' + int(memory?.pendingTotal ?? 0) },
+          pending.length === 0
+            ? h('div', { className: 'lx-table-empty' }, t('noPending'))
+            : h(DataTable, {
+              columns: [
+                { key: 'text', label: t('colContent'), render: (row) => h('span', { className: 'lx-cell-main' }, row.text) },
+                { key: 'kind', label: t('colKind'), render: (row) => h(Chip, { kind: 'accent', children: t(KIND_LABEL[row.kind] ?? 'kindFact') }) },
+                { key: 'source', label: t('colSource'), render: (row) => h('span', { className: 'lg-card-hint' }, String((row.provenance ?? [])[0]?.source ?? '')) },
+                {
+                  key: 'act',
+                  label: '',
+                  align: 'right',
+                  render: (row) => h('div', { className: 'lx-actions' }, [
+                    h('button', { key: 'a', type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onDecide(row.id, 'accept') }, t('accept')),
+                    h('button', { key: 'r', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(row.id, 'retire') }, t('retire')),
+                    h('button', { key: 'x', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDeleteOne(row.id) }, t('deleteOne')),
+                  ]),
                 },
-              })))),
+              ],
+              rows: pending,
+              rowKey: (row) => row.id,
+              empty: t('noPending'),
+            })),
 
-        (() => {
-          const hygiene = memory?.hygiene ?? null;
-          return h(Card, { title: t('hygieneTitle'), hint: t('hygieneHint') },
-            hygiene === null
-              ? h('div', { className: 'lg-status' }, '—')
-              : h('div', { className: 'lg-metric-row' },
-                  Metric({ label: t('hygieneScan'), value: int(hygiene.scanned ?? 0) }),
-                  Metric({ label: t('hygieneQuarantined'), value: int(hygiene.quarantined ?? 0) }),
-                  Metric({ label: t('hygieneEvicted'), value: int(hygiene.evicted ?? 0) }),
-                  Metric({ label: t('hygieneMerged'), value: int(hygiene.merged ?? 0) }),
-                  Metric({ label: t('hygieneUpgraded'), value: int(hygiene.upgraded ?? 0) }),
-                    Metric({ label: t('hygieneProven'), value: int(hygiene.proven ?? 0) }),
-                    Metric({ label: t('hygieneConsolidated'), value: int(hygiene.consolidated ?? 0) })),
-            h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } },
-              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onHygiene },
-                busy === 'hygiene' ? '…' : t('hygieneRun')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
-              h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle'))));
-        })(),
-        h(Card, { title: t('storageTitle'), hint: t('storageHint') },
-          h('div', { className: 'lg-card-hint' }, t('storageCurrent').replace('{dir}', storage?.dir ?? '')),
-          h('div', { className: 'lg-search' },
-            h('input', { className: 'lg-input', type: 'text', placeholder: 'D:\\lingxi-memory', value: storageDir, onChange: (event) => setStorageDir(event.target.value) }),
-            h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '' || storageDir.trim() === '', onClick: () => onMigrate() }, t('storageMigrate')))),
-        ),
+        /* 运维工具 */
+        h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
 
-        h(BrowseCard, { t, busy, status: browseStatus, setStatus: setBrowseStatus, items: browseList, onDelete: onDeleteOne, onRefresh: () => loadBrowse(browseStatus) }),
+          h('div', { className: 'lx-section' },
+            h('div', { className: 'lx-section-title' }, t('purgeTitle')),
+            h('div', { className: 'lx-section-actions' },[
+              h('button', { key: 'f', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPurge({ status: 'retired' }, true) }, t('purgeDryRun')),
+              h('button', { key: 'p', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: () => onPurge({ status: 'retired' }, false) }, t('purgeRun')),
+              h('label', { key: 'i', className: 'lg-btn lg-btn-ghost', style: { cursor: 'pointer' } }, t('importTitle'),
+                h('input', { type: 'file', accept: 'application/json', style: { display: 'none' },
+                  onChange: (event) => {
+                    const file = event.target.files?.[0];
+                    if (file === undefined) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      try { onImport(JSON.parse(String(reader.result ?? '{}'))); }
+                      catch (error) { onImportError(error instanceof Error ? error.message : String(error)); }
+                    };
+                    reader.readAsText(file);
+                    event.target.value = '';
+                  } })),
+            ])),
 
-        h(Card, { title: t('pendingQueue'), hint: (memory?.pendingHidden ?? 0) > 0 ? t('pendingHint') + ' ' + t('pendingHiddenHint').replace('{n}', int(memory.pendingHidden)) : t('pendingHint') },
-          queuePending.length === 0
-            ? h(Empty, { icon: 'check', title: t('noPending') })
-            : h('div', null, queuePending.map((record) =>
-                h('div', { className: 'lg-row', key: record.id },
-                  h('div', { className: 'lg-row-main' },
-                    h('div', { className: 'lg-row-title' }, record.text),
-                    h('div', { className: 'lg-row-meta' },
-                      h(Chip, { kind: 'accent', children: t(KIND_LABEL[record.kind] ?? 'kindFact') }),
-                      h(Chip, { children: t(SCOPE_LABEL[record.scope?.kind] ?? 'scopeMachine') }),
-                      (() => {
-                        const source = (record.provenance ?? [])[0]?.source ?? '';
-                        const label = source === 'model-tool'
-                          ? t('sourceModel')
-                          : source === 'heuristic-instruction'
-                            ? t('sourceHeuristic')
-                            : source === 'tool-failure'
-                              ? t('sourceFailure')
-                              : source === 'efficacy-scan'
-                                ? t('sourceScan')
-                                : '';
-                        return label === '' ? null : h(Chip, { children: label });
-                      })(),
-                      ...memoryMeta(t, record).map((text, index) => h('span', { key: index }, text)))),
-                  h('div', { className: 'lg-row-side' },
-                    h('button', { type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onDecide(record.id, 'accept') }, t('accept')),
-                    h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(record.id, 'retire') }, t('retire')),
-                    h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDeleteOne(record.id) }, t('deleteOne'))))))),
+          hygiene !== null
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('hygieneTitle')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 's', className: 'lg-card-hint' }, t('hygieneScan') + ' ' + int(hygiene.scanned ?? 0)),
+                  h('span', { key: 'q', className: 'lg-card-hint' }, t('hygieneQuarantined') + ' ' + int(hygiene.quarantined ?? 0)),
+                  h('span', { key: 'e', className: 'lg-card-hint' }, t('hygieneEvicted') + ' ' + int(hygiene.evicted ?? 0)),
+                  h('span', { key: 'm', className: 'lg-card-hint' }, t('hygieneMerged') + ' ' + int(hygiene.merged ?? 0)),
+                  h('span', { key: 'p', className: 'lg-card-hint' }, t('hygieneProven') + ' ' + int(hygiene.proven ?? 0)),
+                  h('button', { key: 'run', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: onHygiene }, t('hygieneRun')),
+                  h('button', { key: 'v', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailRetired'), { status: 'retired', limit: 100 }) }, t('detailOpen')),
+                  h('button', { key: 'r', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: onReset }, t('resetTitle')),
+                ]))
+            : null,
 
-        (() => {
-          const info = search ?? null;
-          if (info === null || Number(info.total ?? 0) === 0) return null;
-          const rate = info.total === 0 ? null : Math.round((info.abstained / info.total) * 1000) / 10;
-          return h(Card, { title: t('searchQualityTitle'), hint: t('searchQualityHint') },
-            h('div', { className: 'lg-card-hint' },
-              t('searchQuality')
-                .replace('{n}', int(info.total))
-                .replace('{m}', int(info.abstained))
-                .replace('{r}', rate === null ? '—' : String(rate) + '%')),
-            (() => {
-              const recent = efficacy?.metrics?.compare?.recent ?? {};
-              const total = Number(recent.searches ?? 0);
-              if (total === 0) return null;
-              const share = Math.round((Number(recent.searchAbstained ?? 0) / total) * 1000) / 10;
-              return h('div', { className: 'lg-card-hint', style: { marginTop: 4 } },
-                t('search7d').replace('{n}', int(total)).replace('{r}', String(share) + '%'));
-            })());
-        })(),
+          h('div', { className: 'lx-section' },
+            h('div', { className: 'lx-section-title' }, t('searchQualityTitle')),
+            h('div', { className: 'lx-section-actions' },[
+              h('span', { key: 'q', className: 'lg-card-hint' }, t('searchQuality')
+                .replace('{n}', int(search?.total ?? 0))
+                .replace('{m}', int(search?.abstained ?? 0))
+                .replace('{r}', (search?.total ?? 0) === 0 ? '—' : String(Math.round(((search?.abstained ?? 0) / search.total) * 1000) / 10) + '%')),
+              semanticStats !== undefined && semanticStats !== null
+                ? h('span', { key: 's', className: 'lg-card-hint' }, t('semanticCalls')
+                  .replace('{n}', int(semanticStats.calls ?? 0))
+                  .replace('{ok}', int(semanticStats.ok ?? 0))
+                  .replace('{fail}', int(semanticStats.failed ?? 0))
+                  .replace('{to}', int(semanticStats.timeout ?? 0)))
+                : null,
+            ])),
 
-        h(Card, { title: t('injectSamplesTitle'), hint: t('injectSamplesHint') },
-          h('div', { style: { marginBottom: 8 } },
-            h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onShowSamples(samples ?? []) }, t('injectFullText'))),
-          (injection?.samples?.length ?? 0) === 0
-            ? h('div', { className: 'lg-status' }, t('injectSamplesEmpty'))
-            : h('div', null,
-                injection.samples.map((sample) =>
-                  h('div', { className: 'lg-row', key: String(sample.sessionId) + sample.at },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, '…' + String(sample.sessionId).slice(-8) + ' · ' + int(sample.records) + ' 条 · ' + int(sample.chars) + ' 字'),
-                      h('div', { className: 'lg-row-meta' }, h('span', null, relTime(sample.at, t))))))),
-          injection?.samples?.[0] !== undefined
-            ? h('div', { className: 'lg-block' }, injection.samples[0].preview)
-            : null),
-
-        h('div', { className: 'lg-grid-2' },
-          h(Card, { title: t('kindBreakdown') },
-            Object.entries(kinds).length === 0
-              ? h('div', { className: 'lg-status' }, '—')
-              : Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([kind, count]) =>
-                  h('div', { className: 'lg-row', key: kind },
-                    h('div', { className: 'lg-row-main' }, h('div', { className: 'lg-row-title' }, t(KIND_LABEL[kind] ?? 'kindFact'))),
-                    h('div', { className: 'lg-row-side' }, h(Chip, { children: int(count) }))))),
-          h(Card, { title: t('statusBreakdown') },
-            Object.entries(statuses).length === 0
-              ? h('div', { className: 'lg-status' }, '—')
-              : Object.entries(statuses).sort((a, b) => b[1] - a[1]).map(([status, count]) =>
-                  h('div', { className: 'lg-row', key: status },
-                    h('div', { className: 'lg-row-main' }, h('div', { className: 'lg-row-title' }, t(STATUS_LABEL[status] ?? 'statusActive'))),
-                    h('div', { className: 'lg-row-side' }, h(Chip, { children: int(count) })))))),
-
-        h(Card, { title: t('localOnly'), hint: injection?.enabled === false ? t('injectPaused') : t('injectRunning') },
-          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } },
-            h('button', {
-              type: 'button',
-              className: 'lg-btn',
-              disabled: busy !== '',
-              onClick: () => onInjection({ enabled: !(injection?.enabled !== false) }),
-            }, injection?.enabled === false ? t('injectToggleResume') : t('injectTogglePause')),
-            [400, 700, 1200].map((budget) => h('button', {
-              key: budget,
-              type: 'button',
-              className: 'lg-btn lg-btn-ghost',
-              disabled: busy !== '',
-              onClick: () => onInjection({ charBudget: budget }),
-            }, t('injectBudget') + ' ' + budget)))),
-
-        h(Card, { title: t('injectTitle'), hint: t('localOnly') },
-          h('div', { className: 'lg-metric-row' },
-            Metric({ label: t('injectSessions'), value: int(injection?.sessionsWithMemory ?? 0) }),
-            Metric({ label: t('injectHits'), value: int(injection?.hits ?? 0), onClick: () => onDetail(t('detailHits'), { minHits: 1, limit: 100 }) }),
-            Metric({ label: t('injectMisses'), value: int(injection?.misses ?? 0), onClick: () => onDetail(t('detailMisses'), { minMisses: 1, limit: 100 }) }),
-            Metric({ label: t('injectCaptured'), value: int(injection?.captured ?? 0), onClick: () => onDetail(t('detailCaptured'), { source: 'tool-failure', limit: 100 }) }),
-            Metric({ label: t('injectRepeat'), value: int(injection?.repeatFailures ?? 0), onClick: () => onFailures(t('detailFailures')) }),
-            Metric({ label: t('injectRefined'), value: int(injection?.refined ?? 0) }),
-            Metric({ label: t('injectChars'), value: int(injection?.lastChars ?? 0) })),
-          (() => {
-          const options = semanticOptions ?? null;
-          if (options === null) return null;
-          const pairs = [];
-          pairs.push({ value: '', label: t('semanticFollow') });
-          for (const provider of options.providers ?? []) {
-            const models = Array.isArray(provider.models) ? provider.models : [];
-            if (models.length === 0) {
-              pairs.push({ value: provider.id + '|', label: provider.label });
-              continue;
-            }
-            for (const model of models) {
-              const friendly = (provider.labels ?? {})[model];
-              const text = typeof friendly === 'string' && friendly !== '' ? friendly + ' · ' + model : model;
-              pairs.push({ value: provider.id + '|' + model, label: text });
-            }
-          }
-          const saved = semanticChoice ?? '';
-          const known = pairs.some((pair) => pair.value === saved);
-          const value = known ? saved : '';
-          return h('div', { className: 'lg-field' },
-            h('span', { className: 'lg-field-label' }, t('semanticChoice')),
-            h(Select, {
-              value,
-              options: pairs,
-              onChange: (next) => {
-                const sep = next.indexOf('|');
-                const provider = next.slice(0, sep);
-                const model = next.slice(sep + 1);
-                onSemanticChoice(provider === '' || model === '' ? null : { provider, model });
-              },
-              ariaLabel: t('semanticChoice'),
-            }));
-        })(),
-        h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' } },
-            h('input', { type: 'checkbox', checked: semantic === true, disabled: busy !== '', onChange: (event) => onSemantic(event.target.checked) }),
-        semantic === true && semanticStats !== undefined && semanticStats !== null
-          ? h('div', { className: 'lg-card-hint', style: { marginTop: 8 } },
-            h('div', { className: 'lg-row-meta' }, t('semanticStatsTitle')),
-            semanticStats.calls === 0
-              ? h('div', { className: 'lg-row-meta' }, t('semanticIdle'))
-              : h('div', { className: 'lg-row-meta' },
-                t('semanticCalls')
-                  .replace('{n}', int(semanticStats.calls))
-                  .replace('{ok}', int(semanticStats.ok))
-                  .replace('{fail}', int(semanticStats.failed))
-                  .replace('{to}', int(semanticStats.timeout))),
-            semanticStats.calls > 0
-              ? h('div', { className: 'lg-row-meta' },
-                t('semanticLatency')
-                  .replace('{ms}', int(semanticStats.lastLatencyMs))
-                  .replace('{model}', String(semanticStats.model ?? '—')))
-              : null,
-            String(semanticStats.lastExpansion ?? '') !== ''
-              ? h('div', { className: 'lg-row-meta' }, t('semanticLastExpansion').replace('{text}', String(semanticStats.lastExpansion)))
-              : null,
-            String(semanticStats.lastError ?? '') !== ''
-              ? h('div', { className: 'lg-row-meta', style: { color: 'var(--dsw-alias-label-tertiary)' } }, t('semanticError').replace('{error}', String(semanticStats.lastError)))
-              : null)
-          : null,
-            h('span', null, h('span', { className: 'lg-row-title' }, t('semanticToggle')),
-              h('div', { className: 'lg-row-meta' }, t('semanticHint')))),
-          h('div', { className: 'lg-status' }, t('injectHint')),
-          h('div', { style: { marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 } },
-            h(Chip, { kind: 'mute', children: `7d ${int(health?.usedLast7Days ?? 0)}` }),
-            h(Chip, { kind: 'mute', children: `failures ${int(injection?.trackedFailures ?? 0)}` })))));
-    }
-
-    /* ================================================================ 进化 */
-
-    function EvolutionTab({ t, derived, efficacy, onDecide, onPromote, busy, onDetail, onFailures }) {
-      const lessonEff = new Map((efficacy?.lessonEfficacy ?? []).map((entry) => [entry.id, entry]));
-      const lessons = derived?.lessons ?? [];
-      const facts = derived?.facts ?? [];
-      const skills = derived?.skills ?? [];
-
-      return h('div', { className: 'lg-stack' },
-        (() => {
-          const attribution = efficacy?.attribution ?? null;
-          if (attribution === null) return null;
-          const pairs = attribution.pairs ?? [];
-          if (pairs.length === 0) return null;
-          const totals = attribution.totals ?? { lessons: 0, before: 0, after: 0, delta: 0 };
-          const trend = Array.isArray(efficacy?.attributionTrend) ? efficacy.attributionTrend.slice(-7) : [];
-
-          const before = Number(totals.before ?? 0);
-          const after = Number(totals.after ?? 0);
-          const reduction = before === 0 ? null : Math.round(((before - after) / before) * 1000) / 10;
-          const head = h('div', { className: 'lg-metric-row' },
-            Metric({ label: t('attrBefore'), value: int(before) }),
-            Metric({ label: t('attrAfter'), value: int(after) }),
-            Metric({
-              label: t('attrDrop'),
-              value: reduction === null ? '—' : String(reduction) + '%',
-              caption:
-                reduction === null
-                  ? undefined
-                  : h(Chip, {
-                      kind: after < before ? 'ok' : after > before ? 'warn' : 'mute',
-                      children: after < before ? t('attrFewer') : after > before ? t('attrMore') : t('attrSame'),
-                    }),
-            }),
-          );
-
-          const rows = h('div', { className: 'lg-rows' },
-            pairs.map((pair) =>
-              h('div', { className: 'lg-row', key: pair.tool + '|' + pair.code },
-                h('div', { className: 'lg-row-main' },
-                  h('div', { className: 'lg-row-title' }, pair.tool + (pair.code === '' ? '' : ' · ' + pair.code)),
-                  h('div', { className: 'lg-row-meta' },
-                    h('span', null, t('attrBefore') + ' ' + int(pair.before) + ' (' + t('attrPerDay').replace('{n}', pair.beforePerDay) + ')'),
-                    h('span', null, t('attrAfter') + ' ' + int(pair.after) + ' (' + t('attrPerDay').replace('{n}', pair.afterPerDay) + ')'),
-                    h('span', null, t('attrDays').replace('{n}', String(pair.windowDays))))),
-                h('div', { className: 'lg-row-side' },
-                  h(Chip, {
-                    kind: pair.after < pair.before ? 'ok' : pair.after > pair.before ? 'warn' : 'mute',
-                    children: (pair.after - pair.before > 0 ? '+' : '') + (pair.after - pair.before),
-                  })))),
-          );
-
-          const trendItems = trend.map((entry) =>
-            h('div', { className: 'lg-row', key: entry.day },
-              h('div', { className: 'lg-row-main' },
-                h('div', { className: 'lg-row-title' }, entry.day),
-                h('div', { className: 'lg-row-meta' },
-                  h('span', null, t('attrBefore') + ' ' + int(entry.totals?.before ?? 0) + ' → ' + t('attrAfter') + ' ' + int(entry.totals?.after ?? 0))))));
-          const trendRows = trendItems.length === 0
-            ? null
-            : h('div', { style: { marginTop: 12 } },
-                h('div', { className: 'lg-card-hint', style: { marginBottom: 6 } }, t('attrTrend')),
-                h('div', { className: 'lg-rows' }, trendItems));
-          return h(Card, { title: t('attrTitle'), hint: t('attrHint') }, head, rows, trendRows);
-        })(),
-
-        h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
-          h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailLessons'), { kind: 'lesson', limit: 100 }) }, t('detailOpen'))),
-        (() => {
-          const promotable = efficacy?.promotable ?? [];
-          const cross = efficacy?.failures?.crossSession ?? [];
-          if (promotable.length === 0 && cross.length === 0) return null;
-          return h(Card, { title: t('promoteTitle'), hint: t('promoteHint') },
-            cross.length > 0
-              ? h('div', { className: 'lg-rows', style: { marginBottom: 10 } },
-                  cross.slice(0, 5).map((entry) => h('div', { className: 'lg-row', key: 'cross-' + entry.tool + entry.code },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, entry.tool + (entry.code === '' ? '' : ' · ' + entry.code)),
-                      h('div', { className: 'lg-row-meta' }, h('span', null, t('promoteCross').replace('{s}', int(entry.sessions)).replace('{n}', int(entry.count))))),
-                    h('div', { className: 'lg-row-side' }, h(Chip, { kind: entry.sessions >= 3 ? 'warn' : 'mute', children: int(entry.sessions) + '×' })))))
-              : null,
-            h('div', null, promotable.map((entry) => {
-              const lesson = lessons.find((item) => item.id === entry.id);
-              return h('div', { className: 'lg-row', key: 'promote-' + entry.id },
-                h('div', { className: 'lg-row-main' },
-                  h('div', { className: 'lg-row-title' }, lesson?.action ?? (entry.tool + ' · ' + entry.code)),
-                  h('div', { className: 'lg-row-meta' },
-                    h(Chip, { kind: 'warn', children: t('promoteCross').replace('{s}', int(entry.sessions)).replace('{n}', int(entry.failures)) }),
-                    h(Chip, { kind: 'mute', children: 'private' }))),
-                h('div', { className: 'lg-row-side' },
-                  h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPromote(entry.id, 'workspace') }, t('promoteWorkspace')),
-                  h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onPromote(entry.id, 'global') }, t('promoteGlobal'))));
-            })));
-        })(),
-
-        (() => {
-          const regressions = efficacy?.regressions ?? [];
-          if (regressions.length === 0) return null;
-          return h(Card, { title: t('regressTitle'), hint: t('regressHint') },
-            h('div', null, regressions.map((entry) => {
-              const lesson = lessons.find((item) => item.id === entry.id);
-              return h('div', { className: 'lg-row', key: entry.id },
-                h('div', { className: 'lg-row-main' },
-                  h('div', { className: 'lg-row-title' }, lesson?.action ?? (entry.tool + ' · ' + entry.code)),
-                  h('div', { className: 'lg-row-meta' },
-                    h(Chip, { kind: 'warn', children: int(entry.before) + ' -> ' + int(entry.after) }),
-                    h('span', null, t('lessonHits').replace('{n}', int(entry.hits))))),
-                h('div', { className: 'lg-row-side' },
-                  h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(entry.id, 'retire') }, t('retire'))));
-            })));
-        })(),
-
-        h(Collapsible, { title: t('detailTitle') },
-        h(Card, { title: t('liveLessons'), hint: int(lessons.length) },
-          lessons.length === 0
-            ? h(Empty, { icon: 'lesson', title: t('noLiveLessons') })
-            : h('div', null,
-                lessons.map((item) =>
-                  h('div', { className: 'lg-row', key: item.id },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, item.action),
-                      h('div', { className: 'lg-row-meta' },
-                        item.category !== '' ? h(Chip, { children: item.category }) : null,
-                        h(Chip, { kind: 'mute', children: item.sharing }),
-                        h('span', null, t('lessonVotes').replace('{n}', int(item.votes))),
-                        h('span', null, t('lessonHits').replace('{n}', int(item.hits))),
-                        h('span', null, t('lessonMisses').replace('{n}', int(item.misses))),
-                        (() => {
-                          const eff = lessonEff.get(item.id);
-                          if (eff === undefined) return null;
-                          const shortWindow = Number(eff.windowDays ?? 0) < 1;
-                          if (shortWindow) return h(Chip, { kind: 'mute', children: t('lessonObserving') });
-                          return h(Chip, { kind: eff.delta < 0 ? 'ok' : eff.delta > 0 ? 'warn' : 'mute', children: int(eff.before) + ' -> ' + int(eff.after) });
-                        })(),)))))),
-
-        h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
-          h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailFacts'), { kind: 'constraint', limit: 100 }) }, t('detailOpen'))),
-        h(Card, { title: t('liveFacts'), hint: int(facts.length) },
-          facts.length === 0
-            ? h(Empty, { icon: 'fact', title: t('noLiveFacts') })
-            : h('div', null,
-                facts.map((item) =>
-                  h('div', { className: 'lg-row', key: item.id },
-                    h('div', { className: 'lg-row-main' },
-                      h('div', { className: 'lg-row-title' }, item.text),
-                      h('div', { className: 'lg-row-meta' },
-                        h(Chip, { kind: item.kind === 'constraint' ? 'accent' : undefined, children: t(KIND_LABEL[item.kind] ?? 'kindFact') }),
-                        h(Chip, { kind: 'mute', children: item.sharing }),
-                        h('span', null, t('factsEvidence').replace('{n}', int(item.evidence))))))))),
-
-        h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: 6 } },
-          h('button', { type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('detailSkills'), { kind: 'skill', limit: 100 }) }, t('detailOpen'))),
-
-        (() => {
-          const skillItems = skills.map((item) =>
-            h('div', { className: 'lg-row', key: item.id },
-              h('div', { className: 'lg-row-main' },
-                h('div', { className: 'lg-row-title' }, item.goal),
-                h('div', { className: 'lg-row-meta' },
-                  h(Chip, { kind: item.state === 'candidate' ? 'warn' : 'ok', children: t(STATUS_LABEL[item.state] ?? 'statusCandidate') }),
-                  h('span', null, t('lessonVotes').replace('{n}', int(item.evidence))))),
-              h('div', { className: 'lg-row-side' },
-                onDecide === undefined ? null : h('button', {
-                  type: 'button',
-                  className: 'lg-btn lg-btn-ghost',
-                  disabled: busy !== '',
-                  onClick: () => onDecide(item.id, 'accept'),
-                }, t('accept')),
-                onDecide === undefined ? null : h('button', {
-                  type: 'button',
-                  className: 'lg-btn lg-btn-ghost',
-                  disabled: busy !== '',
-                  onClick: () => onDecide(item.id, 'retire'),
-                }, t('retire')))));
-          return h(Card, { title: t('liveSkills'), hint: int(skills.length) },
-            skillItems.length === 0 ? h(Empty, { icon: 'spark', title: t('noLiveSkills') }) : h('div', null, skillItems));
-        })(),
+          h('div', { className: 'lx-section' },
+            h('div', { className: 'lx-section-title' }, t('statusBreakdown')),
+            h('div', { className: 'lx-section-actions' }, Object.entries(health?.byStatus ?? {}).map(([key, value]) =>
+              h('span', { key, className: 'lg-card-hint' }, key + ' ' + int(value))))),
         ),
       );
     }
 
-    /* ================================================================ 面板 */
+    function EvolutionTab({ t, derived, efficacy, memory, injection, busy, onDecide, onPromote, onDetail, onFailures }) {
+      const lessonEff = new Map((efficacy?.lessonEfficacy ?? []).map((entry) => [entry.id, entry]));
+      const lessons = derived?.lessons ?? [];
+      const facts = derived?.facts ?? [];
+      const skills = derived?.skills ?? [];
+      const attribution = efficacy?.attribution ?? null;
+      const corrections = efficacy?.failures?.corrections ?? null;
+      const compare = efficacy?.metrics?.compare ?? null;
+      const promotable = efficacy?.promotable ?? [];
+      const regressions = efficacy?.regressions ?? [];
+      const proven = Number(memory?.hygiene?.proven ?? 0);
+
+      const recent = compare?.recent ?? {};
+      const previous = compare?.previous ?? {};
+      const ratio = (bucket) => {
+        const total = Number(bucket?.corrections ?? 0);
+        if (total <= 0) return null;
+        return Math.round((Number(bucket?.correctionPenalized ?? 0) / total) * 10) / 10;
+      };
+      const nowRatio = ratio(recent);
+      const adoptRate = (() => {
+        const adopted = Number(recent.adviceAdopted ?? 0);
+        const ignored = Number(recent.adviceIgnored ?? 0);
+        if (adopted + ignored === 0) return null;
+        return Math.round((adopted / (adopted + ignored)) * 1000) / 10;
+      })();
+
+      /* 教训疗效表：每条教训沉淀前后，对应场景的失败次数变化 */
+      const effRows = lessons
+        .map((item) => ({ item, eff: lessonEff.get(item.id) ?? null }))
+        .filter((row) => row.eff !== null && Number(row.eff.before ?? 0) > 0)
+        .sort((a, b) => Number(a.eff.after ?? 0) - Number(b.eff.after ?? 0));
+
+      const effColumns = [
+        { key: 'text', label: t('colLesson'), width: '42%', render: (row) => h('span', { className: 'lx-cell-main' }, String(row.item.action ?? row.item.text ?? '').slice(0, 90)) },
+        { key: 'before', label: t('attrBeforeShort'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.eff.before) },
+        { key: 'after', label: t('attrAfterShort'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.eff.after) },
+        {
+          key: 'delta',
+          label: t('attrDeltaShort'),
+          align: 'right',
+          render: (row) => {
+            const before = Number(row.eff.before ?? 0);
+            const after = Number(row.eff.after ?? 0);
+            if (before <= 0) return h('span', { className: 'lx-cell-num' }, '—');
+            const value = Math.round(((after - before) / before) * 100);
+            return h(Chip, { kind: value < 0 ? 'ok' : 'warn', children: (value > 0 ? '+' : '') + String(value) + '%' });
+          },
+        },
+        {
+          key: 'state',
+          label: t('colState'),
+          render: (row) => {
+            const shortWindow = Number(row.eff.windowDays ?? 0) < 1;
+            if (shortWindow) return h(Chip, { kind: 'mute', children: t('lessonObserving') });
+            const hits = Number(row.item.hits ?? row.item.hitCount ?? 0);
+            const misses = Number(row.item.misses ?? row.item.missCount ?? 0);
+            const rate = hits + misses === 0 ? null : hits / (hits + misses);
+            const isProven = rate !== null && hits >= 3 && rate >= 0.8;
+            return h(Chip, { kind: isProven ? 'ok' : 'mute', children: isProven ? t('hygieneProven') : t('lessonObserving') });
+          },
+        },
+        {
+          key: 'act',
+          label: '',
+          align: 'right',
+          render: (row) => h('div', { className: 'lx-actions' }, [
+            h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('lifeTitle'), { minHits: 0, limit: 100 }) }, t('detailOpen')),
+            h('button', { key: 'r', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onDecide(row.item.id, 'retire') }, t('retire')),
+          ]),
+        },
+      ];
+
+      return h('div', { className: 'lg-stack' },
+
+        /* 指标行 */
+        h(StatBar, { items: [
+          {
+            label: t('statCorr'),
+            value: corrections === null ? '—' : String(corrections.ratePer100) + '%',
+            hint: t('corrSplit')
+              .replace('{a}', String(corrections?.ratePer100 ?? '—'))
+              .replace('{b}', String(corrections?.feedbackPer100 ?? '—')),
+          },
+          {
+            label: t('adviceAdopted'),
+            value: adoptRate === null ? '—' : String(adoptRate) + '%',
+            hint: int(recent.adviceAdopted ?? 0) + '/' + int((recent.adviceAdopted ?? 0) + (recent.adviceIgnored ?? 0)),
+          },
+          {
+            label: t('corrPrecisionShort'),
+            value: nowRatio === null ? '—' : String(nowRatio),
+            hint: t('attrPerCorrection'),
+          },
+          { label: t('hygieneProven'), value: int(proven), tone: 'ok' },
+        ] }),
+
+        /* 教训疗效 */
+        h(SectionTitle, {
+          title: t('lessonEfficacyTitle'),
+          hint: t('lessonEfficacyHint'),
+        }),
+        h(Card, null,
+          h(DataTable, {
+            columns: effColumns,
+            rows: effRows,
+            rowKey: (row) => row.item.id,
+            empty: t('lessonEfficacyEmpty'),
+          })),
+
+        /* 跨会话建议：需要行动，独立成卡 */
+        promotable.length > 0
+          ? h(Card, { title: t('promoteTitle'), hint: t('promoteHint') },
+            h(DataTable, {
+              columns: [
+                { key: 'text', label: t('colLesson'), render: (row) => { const hit = lessons.find((entry) => entry.id === row.id); return h('span', { className: 'lx-cell-main' }, String(hit?.action ?? row.text ?? (String(row.tool ?? '') + ' · ' + String(row.code ?? ''))).slice(0, 80)); } },
+                { key: 'sessions', label: t('colSessions'), align: 'right', className: 'lx-cell-num', render: (row) => int(row.sessions ?? 0) },
+                {
+                  key: 'act',
+                  label: '',
+                  align: 'right',
+                  render: (row) => h('div', { className: 'lx-actions' }, [
+                    h('button', { key: 'p', type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: () => onPromote(row.id, 'global') }, t('shareGlobal')),
+                    h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('lifeTitle'), { limit: 100 }) }, t('detailOpen')),
+                  ]),
+                },
+              ],
+              rows: promotable,
+              rowKey: (row) => row.id,
+              empty: t('promoteNone'),
+            }))
+          : null,
+
+        /* 折叠：归因明细 / 疗效为负 / 事实与技能 */
+        h(Collapsible, { title: t('detailTitle') },
+
+          attribution !== null && Number((attribution.totals ?? {}).lessons ?? 0) > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('attrTitle')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'l', className: 'lg-card-hint' }, t('attrLessons') + ' ' + int((attribution.totals ?? {}).lessons ?? 0)),
+                  h('span', { key: 'b', className: 'lg-card-hint' }, t('attrBefore') + ' ' + int((attribution.totals ?? {}).before ?? 0)),
+                  h('span', { key: 'a', className: 'lg-card-hint' }, t('attrAfter') + ' ' + int((attribution.totals ?? {}).after ?? 0)),
+                  h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', disabled: busy !== '', onClick: () => onFailures(t('detailFailures')) }, t('detailOpen')),
+                ]))
+            : null,
+
+          regressions.length > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('regressTitle')),
+                h('div', { className: 'lx-section-actions' }, regressions.map((row, index) =>
+                  h('span', { key: index, className: 'lg-card-hint' }, String(row.tool ?? '') + ' ' + String(row.code ?? '') + ' ' + int(row.before ?? 0) + '→' + int(row.after ?? 0)))))
+            : null,
+
+          facts.length > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('liveFacts')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'n', className: 'lg-card-hint' }, int(facts.length) + ' ' + t('times')),
+                  h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('liveFacts'), { kind: 'fact', limit: 100 }) }, t('detailOpen')),
+                ]))
+            : null,
+
+          skills.length > 0
+            ? h('div', { className: 'lx-section' },
+                h('div', { className: 'lx-section-title' }, t('liveSkills')),
+                h('div', { className: 'lx-section-actions' }, [
+                  h('span', { key: 'n', className: 'lg-card-hint' }, int(skills.length) + ' ' + t('times')),
+                  h('button', { key: 'd', type: 'button', className: 'lg-btn lg-btn-ghost', onClick: () => onDetail(t('liveSkills'), { kind: 'skill', limit: 100 }) }, t('detailOpen')),
+                ]))
+            : null,
+
+          lessons.length === 0 && facts.length === 0 && skills.length === 0
+            ? h('div', { className: 'lx-table-empty' }, t('noInsights'))
+            : null),
+      );
+    }
 
     function Panel({ t, sessionId }) {
       const context = { sessionId: typeof sessionId === 'string' ? sessionId : '', workspaceId: '' };
@@ -2694,6 +2766,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState('');
       // 权威状态来自后端（meta 持久化后回传），刷新/重启后开关不回弹
       const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
+      const [settingsOpen, setSettingsOpen] = React.useState(false);
       React.useEffect(() => {
         if (data?.injection?.semantic !== undefined) setSemanticOn(data.injection.semantic === true);
       }, [data?.injection?.semantic]);
@@ -3074,8 +3147,8 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats });
-        else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, onDecide: decide, onPromote: promote, busy, onDetail: openDetail, onFailures: openFailures });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion });
+        else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,
           derived,
@@ -3120,11 +3193,47 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button',
                 className: 'lg-iconbtn',
+                title: t('settingsTitle'),
+                'aria-label': t('settingsTitle'),
+                onClick: () => setSettingsOpen(true),
+              }, h(Icon, { name: 'settings' })),
+              h('button', {
+                type: 'button',
+                className: 'lg-iconbtn',
                 title: refreshing ? t('refreshing') : t('refresh'),
                 'aria-label': t('refresh'),
                 disabled: refreshing,
                 onClick: () => reload(true),
               }, h('span', { className: refreshing ? 'lg-spin' : undefined }, h(Icon, { name: 'refresh' }))))),
+
+          // 状态条：一屏看懂系统状态，每个数字可点开明细
+          h(StatBar, {
+            items: [
+              { label: t('statTotal'), value: int(health?.total ?? 0), onClick: () => openDetail(t('detailAll'), { limit: 100 }) },
+              { label: t('statActive'), value: int(health?.byStatus?.active ?? 0), onClick: () => openDetail(t('detailActive'), { status: 'active', limit: 100 }) },
+              { label: t('hygieneProven'), value: int(memory?.hygiene?.proven ?? 0), tone: 'ok' },
+              {
+                label: t('statCoverage'),
+                value: (data?.efficacy?.failures?.coverage?.total ?? 0) === 0
+                  ? '—'
+                  : int(data.efficacy.failures.coverage.covered) + '/' + int(data.efficacy.failures.coverage.total),
+                tone: data?.efficacy?.failures?.coverage?.ratio === 1 ? 'ok' : undefined,
+              },
+              {
+                label: t('statFeedback'),
+                // 反馈率 = 显式纠错 + 质疑式反馈；两者都已是百分数，不再乘 100
+                value: data?.efficacy?.failures?.corrections === undefined || data?.efficacy?.failures?.corrections === null
+                  ? '—'
+                  : String(data.efficacy.failures.corrections.feedbackPer100 ?? data.efficacy.failures.corrections.ratePer100) + '%',
+                hint: t('statFeedbackHint'),
+              },
+              {
+                label: t('statAlerts'),
+                value: int((data?.alerts ?? []).length),
+                tone: (data?.alerts ?? []).length > 0 ? 'mute' : 'ok',
+              },
+            ],
+          }),
 
           notice !== null
             ? h('div', { className: 'lg-toast' + (notice.kind === 'error' ? ' lg-toast-error' : '') }, notice.text)
@@ -3156,6 +3265,25 @@ window.__ModuleLoader__.load({
           }),
 
           body,
+
+          h(SettingsDrawer, {
+            t,
+            open: settingsOpen,
+            onClose: () => setSettingsOpen(false),
+            busy,
+            data,
+            actions: {
+              onInjection: injectionConfig,
+              onSemantic: semanticConfig,
+              onSemanticChoice: semanticChoiceConfig,
+              onMigrate: migrateStorage,
+              onAudit: auditStore,
+              onRepair: repairStore,
+              onSelfcheck: selfcheck,
+              onExport: exportAll,
+              onReset: openReset,
+            },
+          }),
 
           h(Drawer, { t, detail, onClose: () => setDetail(null), onReset: doReset, busy }),
 
