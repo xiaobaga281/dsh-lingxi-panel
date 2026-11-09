@@ -607,5 +607,15 @@ await check('采纳覆盖表：低采纳场景的期望工具可被自学习覆�
   applyAdoptionOverrides({ FS_STALE_VERSION: [] });
   assert.ok(expectedToolsFor("FS_STALE_VERSION").length > 0, "empty override falls back to base");
 });
+
+await check('语义召回：默认关闭，开关状态由 settingsRef 实时反映', async () => {
+  const { createSemantic } = await import('./semantic.js');
+  let settings = { semantic: false, semanticModel: null };
+  const s = createSemantic({ ctx: null, settingsRef: () => settings });
+  assert.equal(s.snapshot().enabled, false, "disabled by default");
+  settings = { semantic: true, semanticModel: null };
+  assert.equal(s.snapshot().enabled, true, "reflects live setting (no restart needed)");
+  assert.equal(await s.expandQuery("测试"), "", "disabled model path yields no expansion");
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

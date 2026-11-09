@@ -1076,7 +1076,14 @@ export function apply(ctx, config) {
         ok: true,
         offlineSnapshot: true,
         generatedAt: Date.now(),
-        injection: { ...stats, autoSeeded, autoActivated },
+        injection: {
+            ...stats,
+            autoSeeded,
+            autoActivated,
+            // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
+            semantic: settings.semantic === true,
+            semanticModel: settings.semanticModel ?? null,
+          },
         evolution,
         scenes: injector.sceneSnapshot(),
         derived,
@@ -1363,7 +1370,14 @@ export function apply(ctx, config) {
           context,
           live,
           derived,
-          injection: { ...stats, autoSeeded, autoActivated },
+          injection: {
+            ...stats,
+            autoSeeded,
+            autoActivated,
+            // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
+            semantic: settings.semantic === true,
+            semanticModel: settings.semanticModel ?? null,
+          },
           search: { ...searchStats },
           storage: { dir: memoryDir, pointer: readStoragePointer() },
           samples: (injector.stats().samples ?? []).slice(-5).map((sample) => ({ sessionId: sample.sessionId, chars: sample.chars, records: sample.records, text: sample.text ?? sample.preview })),

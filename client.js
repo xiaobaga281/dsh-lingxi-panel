@@ -2686,7 +2686,11 @@ window.__ModuleLoader__.load({
         setTab(next);
       };
       const [busy, setBusy] = React.useState('');
+      // 权威状态来自后端（meta 持久化后回传），刷新/重启后开关不回弹
       const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
+      React.useEffect(() => {
+        if (data?.injection?.semantic !== undefined) setSemanticOn(data.injection.semantic === true);
+      }, [data?.injection?.semantic]);
       const [semanticChoice, setSemanticChoice] = React.useState('');
       const [semanticOptions, setSemanticOptions] = React.useState(null);
 
@@ -2694,7 +2698,7 @@ window.__ModuleLoader__.load({
         requestJson('lingxi/semantic/options').then((body) => {
           if (body.ok !== true) return;
           setSemanticOptions(body);
-          const saved = body.saved ?? null;
+          const saved = body.saved ?? data?.injection?.semanticModel ?? null;
           const next = saved === null ? '' : String(saved.provider ?? '') + '|' + String(saved.model ?? '');
           // 只在首次回填，避免轮询覆盖用户正在浏览的选择
           setSemanticChoice((current) => (current === '' ? next : current));
