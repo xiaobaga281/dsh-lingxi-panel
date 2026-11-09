@@ -632,5 +632,45 @@ await check('注入块整体不超预算（header/footer 也计入）', async ()
   assert.ok(budget > 0, "budget recorded: " + budget);
   assert.ok(text.length <= budget, "block " + text.length + " must fit budget " + budget);
 });
+
+await check('语义连续失败会被计数并在成功后清零（告警的依据）', async () => {
+  const { createSemantic } = await import('./semantic.js');
+  let reply = '';
+  const llm = {
+    stream: () => (async function* () {
+      yield { type: 'finish', reason: 'stop' };
+    })(),
+  };
+  const ctx = {
+    get: (name) => {
+      if (name === 'llm') return llm;
+      if (name === 'agentDefaultModel') return { currentSelection: () => ({ provider: 'p', model: 'm' }) };
+      return undefined;
+    },
+  };
+  const s = createSemantic({ ctx, settingsRef: () => ({ semantic: true, semanticModel: null }) });
+  // 空回复：失败被计数（节流会跳过紧邻的第二次，这本身是对的行为）
+  await s.expandQuery('第一次查询');
+  assert.equal(s.snapshot().consecutiveFailures, 1, 'one attempt counted: ' + s.snapshot().consecutiveFailures);
+  assert.equal(s.snapshot().lastError, 'empty-reply', 'last error recorded');
+  // 等到节流窗口过去再试一次：连续失败应继续累积（这是告警的触发条件）
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  await s.expandQuery('第二次查询');
+  assert.equal(s.snapshot().consecutiveFailures, 2, 'accumulates to 2: ' + s.snapshot().consecutiveFailures);
+});
+
+await check('语义告警条件：开启且连续失败≥2 才告警', async () => {
+  const { semanticAlert } = await import('./semantic.js');
+  assert.equal(semanticAlert({ enabled: false, consecutiveFailures: 9 }), null, 'disabled never alerts');
+  assert.equal(semanticAlert({ enabled: true, consecutiveFailures: 1 }), null, 'single failure below threshold');
+  assert.equal(semanticAlert(null), null, 'null snapshot safe');
+  const hit = semanticAlert({ enabled: true, consecutiveFailures: 2, lastError: 'empty-reply' });
+  assert.ok(hit !== null, 'two failures alert');
+  assert.equal(hit.kind, 'semantic-empty', 'kind');
+  assert.equal(hit.count, 2, 'count');
+  assert.equal(hit.detail, 'empty-reply', 'detail carries the reason');
+  // 阈值可调：诊断场景可以更灵敏
+  assert.ok(semanticAlert({ enabled: true, consecutiveFailures: 1 }, { threshold: 1 }) !== null, 'custom threshold');
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

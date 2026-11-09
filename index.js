@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LingxiMemory } from './memory/index.js';
 import { canonicalFailure, createInjector, userMessageText } from './injector.js';
-import { createSemantic } from './semantic.js';
+import { createSemantic, semanticAlert } from './semantic.js';
 import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures } from './metrics.js';
 import { annotate } from './noise.js';
 import { mayInject } from './memory/schema.js';
@@ -90,83 +90,63 @@ export function apply(ctx, config) {
 
   const semantic = createSemantic({ ctx, settingsRef: () => settings });
 
-  // 语义召回的运行时自检：开启时启动后探一次，把"能拿到什么"记下来。
-  // 之前它长期 enabled=true 却 ok=0，因为没有可观测通道。
-  setTimeout(async () => {
-    if (settings.semantic !== true) return;
-    const out = { at: Date.now(), model: null, text: '', chunkKeys: [], error: null };
+  /**
+   * 探一次当前语义模型：返回 { ok, text, error }。
+   * 用于「开启开关」当场验证与启动自检，避免"已开启但零产出"静默。
+   */
+  async function probeSemanticOnce() {
+    const out = { ok: false, text: '', error: null, model: null, at: Date.now() };
     try {
       const llm = ctx?.get?.('llm');
       out.model = await semantic.currentModel();
-      if (llm === undefined || typeof llm.stream !== 'function') out.error = 'llm.stream unavailable';
-      else if (out.model === null) out.error = 'no model resolved';
-      else {
-        // 列出真实已注册路由（面板选的 provider 未必是已注册的路由名）
-        out.providers = (() => {
-          try {
-            const raw = llm.listProviders?.() ?? [];
-            return (Array.isArray(raw) ? raw : []).map((entry) => String(entry?.id ?? ''));
-          } catch {
-            return [];
-          }
-        })();
-        // 逐个路由试一次：谁能返回文本，谁才是可用的
-        out.attempts = [];
-        for (const provider of out.providers.slice(0, 6)) {
-          const attempt = { provider, text: '', chunks: 0, types: [], error: null };
-          try {
-            // 每个 provider 用「它自己的」首个模型：
-            // 拿别的 provider 的模型名去调，只会得到空 finish，会误判成"这个 provider 坏了"。
-            let probeModel = out.model.model;
-            if (provider !== out.model.provider) {
-              probeModel = '';
-              try {
-                const models = await llm.listModels?.(provider) ?? [];
-                const first = (Array.isArray(models) ? models : [])[0];
-                probeModel = String(typeof first === 'string' ? first : (first?.id ?? first?.name ?? ''));
-              } catch {
-                probeModel = '';
-              }
-            }
-            if (probeModel === '') continue;
-            const iterable = llm.stream({
-              provider,
-              model: probeModel,
-              messages: [{
-                id: 'lingxi-probe-' + String(out.attempts.length),
-                role: 'user',
-                content: [{ type: 'text', text: '只回答两个字：你好' }],
-                source: { kind: 'user' },
-              }],
-              maxTokens: 24,
-            });
-            for await (const chunk of iterable) {
-              attempt.chunks += 1;
-              if (chunk !== null && typeof chunk === 'object') {
-                const t = String(chunk.type ?? '');
-                if (t !== '' && !attempt.types.includes(t)) attempt.types.push(t);
-                if (typeof chunk.text === 'string') attempt.text += chunk.text;
-              }
-              if (attempt.chunks >= 40) break;
-            }
-          } catch (error) {
-            attempt.error = errorMessage(error).slice(0, 80);
-          }
-          attempt.text = String(attempt.text).slice(0, 60);
-          out.attempts.push(attempt);
-        }
-        const good = out.attempts.find((entry) => entry.text !== '');
-        if (good !== undefined) {
-          out.workingProvider = good.provider;
-          out.text = good.text;
-        }
-        out.chunkKeys = out.attempts.flatMap((entry) => entry.types).filter((v, i, a) => a.indexOf(v) === i);
+      if (llm === undefined || typeof llm.stream !== 'function') { out.error = 'llm-unavailable'; return out; }
+      if (out.model === null) { out.error = 'no-model'; return out; }
+      const iterable = llm.stream({
+        provider: out.model.provider,
+        model: out.model.model,
+        system: '只回答两个字，不要解释。',
+        messages: [{
+          id: 'lingxi-check-' + String(Date.now()),
+          role: 'user',
+          content: [{ type: 'text', text: '回复：可用' }],
+          source: { kind: 'user' },
+        }],
+        maxTokens: 32,
+      });
+      let text = '';
+      let reasoning = '';
+      let count = 0;
+      for await (const chunk of iterable) {
+        count += 1;
+        if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
+        else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') reasoning += chunk.text;
+        else if (typeof chunk === 'string') text += chunk;
+        if (count >= 40) break;
       }
+      if (text.trim() === '' && reasoning.trim() !== '') text = reasoning.slice(-200);
+      out.text = text.trim().slice(0, 60);
+      if (out.text === '') out.error = 'empty-reply';
+      else out.ok = true;
     } catch (error) {
-      out.error = errorMessage(error);
+      out.error = errorMessage(error).slice(0, 120);
     }
-    out.text = String(out.text ?? '').slice(0, 120);
-    lastSemanticProbe = out;
+    return out;
+  }
+
+  // 语义召回的运行时自检：开启时启动后探一次，把"能拿到什么"记下来。
+  // 之前它长期 enabled=true 却 ok=0，因为没有可观测通道。
+  // 启动自检：只验「当前选中的模型」一次，不扫全部 provider。
+  // 全量扫描每重启会烧掉多次真实请求，改为面板里的手动诊断。
+  setTimeout(async () => {
+    if (settings.semantic !== true) return;
+    const check = await probeSemanticOnce();
+    lastSemanticProbe = {
+      at: check.at,
+      model: check.model,
+      text: check.text,
+      error: check.error,
+      chunkKeys: check.ok === true ? ['text'] : [],
+    };
   }, 6000);
 
   const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
@@ -786,6 +766,9 @@ export function apply(ctx, config) {
       if (demoted > demoteLimit) list.push({ kind: 'demote-spike', count: demoted });
       if (lastAudit !== null && lastAudit.ok !== true) list.push({ kind: 'audit-failed', count: (lastAudit.lines ?? []).length });
       if (quarantined > Math.max(20, Math.round(live * 0.2))) list.push({ kind: 'quarantine-spike', count: quarantined });
+      // 语义召回开着却一直拿不到内容：必须让人看见，不能只躺在统计里。
+      const semAlert = semanticAlert(semantic.snapshot());
+      if (semAlert !== null) list.push(semAlert);
       const coverage = efficacy?.coverage ?? null;
       if (coverage !== null && Number(coverage.total ?? 0) > 0 && Number(coverage.covered ?? 0) === 0) {
         list.push({ kind: 'coverage-zero', count: Number(coverage.total ?? 0) });
@@ -1913,45 +1896,58 @@ export function apply(ctx, config) {
 
       // 诊断探针：把 llm.stream 真实返回的 chunk 形状原样打出来。
       // 语义召回曾长期"开启但零产出"，就是因为 chunk 结构与假设不符却无从观测。
+      // 手动诊断：只在用户点击时运行。会消耗多次模型调用，故不做启动自检。
       route('/lingxi/semantic/probe', async (request, response) => {
         if (!allowGetPost(request, response)) return;
-        const out = { model: null, chunks: [], error: null };
         try {
+          const selected = await probeSemanticOnce();
           const llm = ctx?.get?.('llm');
-          out.model = await semantic.currentModel();
-          if (llm === undefined || typeof llm.stream !== 'function') {
-            out.error = 'llm.stream unavailable';
-          } else if (out.model === null) {
-            out.error = 'no model resolved';
-          } else {
-            const iterable = llm.stream({
-              provider: out.model.provider,
-              model: out.model.model,
-              messages: [{ role: 'user', content: '只回答两个字：你好' }],
-              maxTokens: 24,
-            });
-            let count = 0;
-            for await (const chunk of iterable) {
-              count += 1;
-              let shape = null;
-              try {
-                shape = {
-                  ctor: chunk === null ? "null" : typeof chunk,
-                  keys: chunk !== null && typeof chunk === 'object' ? Object.keys(chunk) : [],
-                  sample: String(JSON.stringify(chunk)).slice(0, 220),
-                };
-              } catch {
-                shape = { ctor: typeof chunk, keys: [], sample: "[unserializable]" };
-              }
-              out.chunks.push(shape);
-              if (count >= 6) break;
+          const providers = (() => {
+            try {
+              const raw = llm?.listProviders?.() ?? [];
+              return (Array.isArray(raw) ? raw : []).map((entry) => String(entry?.id ?? '')).filter((id) => id !== '');
+            } catch {
+              return [];
             }
-            out.chunkCount = count;
+          })();
+          const attempts = [];
+          for (const provider of providers.slice(0, 8)) {
+            const attempt = { provider, text: '', chunks: 0, error: null };
+            try {
+              const list = await llm?.listModels?.(provider) ?? [];
+              const first = (Array.isArray(list) ? list : [])[0];
+              const modelId = String(typeof first === 'string' ? first : (first?.id ?? first?.name ?? ''));
+              if (modelId === '') { attempt.error = 'no-model'; attempts.push(attempt); continue; }
+              const iterable = llm.stream({
+                provider,
+                model: modelId,
+                system: '只回答两个字，不要解释。',
+                messages: [{
+                  id: 'lingxi-diag-' + String(attempts.length),
+                  role: 'user',
+                  content: [{ type: 'text', text: '回复：可用' }],
+                  source: { kind: 'user' },
+                }],
+                maxTokens: 32,
+              });
+              let text = '';
+              for await (const chunk of iterable) {
+                attempt.chunks += 1;
+                if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
+                else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') text += chunk.text;
+                if (attempt.chunks >= 40) break;
+              }
+              attempt.text = text.trim().slice(0, 60);
+            } catch (error) {
+              attempt.error = errorMessage(error).slice(0, 100);
+            }
+            attempts.push(attempt);
           }
+          const working = attempts.filter((entry) => entry.text !== '').map((entry) => entry.provider);
+          sendJson(response, 200, { ok: selected.ok === true, selected, attempts, working });
         } catch (error) {
-          out.error = errorMessage(error);
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
-        sendJson(response, 200, { ok: out.error === null, ...out });
       });
 
       route('/lingxi/semantic/options', async (request, response) => {
@@ -2047,10 +2043,15 @@ export function apply(ctx, config) {
         }
         const body = await readBody(request);
         let injectionPatch = { ...(body ?? {}) };
+        let semanticCheck = null;
         if (injectionPatch.semantic !== undefined) {
           settings.semantic = injectionPatch.semantic === true;
           await writeMeta({ semantic: settings.semantic });
           delete injectionPatch.semantic;
+          // 开启即验证：不要等几分钟后靠统计才发现它没工作。
+          if (settings.semantic === true) {
+            semanticCheck = await probeSemanticOnce();
+          }
         }
         if (injectionPatch.semanticModel !== undefined) {
         const picked = injectionPatch.semanticModel ?? null;
@@ -2062,7 +2063,7 @@ export function apply(ctx, config) {
     const next = injector.configure(injectionPatch);
         await writeMeta({ injection: next });
         await writeStatus();
-        sendJson(response, 200, { ok: true, config: next });
+        sendJson(response, 200, { ok: true, config: next, semanticCheck });
       });
 
       return () => {

@@ -14,6 +14,22 @@ const CONSOLIDATE_SYSTEM = '你是记忆整理助手。下面两条记忆说的�
 
 const KEYWORDS_SYSTEM = '你是检索助手。为下面这条记忆生成 5-8 个语义检索关键词（同义词、相关词、英文缩写），每行一个，不要解释，不要序号。';
 
+/**
+ * 由快照推导告警（纯函数，便于回归测试）。
+ * 语义召回开着却连续拿不到内容 → 必须让人看见，不能只躺在统计里。
+ */
+export function semanticAlert(snapshot, { threshold = 2 } = {}) {
+  if (snapshot === null || snapshot === undefined) return null;
+  if (snapshot.enabled !== true) return null;
+  const failures = Number(snapshot.consecutiveFailures ?? 0);
+  if (failures < threshold) return null;
+  return {
+    kind: 'semantic-empty',
+    count: failures,
+    detail: String(snapshot.lastError ?? 'empty-reply'),
+  };
+}
+
 export function createSemantic({ ctx, settingsRef }) {
   /** 查询文本 → Promise<string>：按查询去重，不跨查询复用 */
   const inflight = new Map();
@@ -34,6 +50,8 @@ export function createSemantic({ ctx, settingsRef }) {
     expandedQueries: 0,
     keywordRuns: 0,
     usedReasoning: 0,
+    consecutiveFailures: 0,
+    lastFailAt: 0,
     consolidations: 0,
     consolidated: 0,
     lastLatencyMs: 0,
@@ -75,12 +93,16 @@ export function createSemantic({ ctx, settingsRef }) {
     const model = await currentModel();
     if (model === null) {
       stats.failed += 1;
+      stats.consecutiveFailures += 1;
+      stats.lastFailAt = Date.now();
       stats.lastError = 'no-model';
       return '';
     }
     const llm = ctx?.get?.('llm');
     if (llm === undefined || typeof llm.stream !== 'function') {
       stats.failed += 1;
+      stats.consecutiveFailures += 1;
+      stats.lastFailAt = Date.now();
       stats.lastError = 'no-llm-service';
       return '';
     }
@@ -145,12 +167,16 @@ export function createSemantic({ ctx, settingsRef }) {
       }
       if (text.trim() === '') {
         stats.failed += 1;
+        stats.consecutiveFailures += 1;
+        stats.lastFailAt = Date.now();
         if (stats.lastError === '') stats.lastError = 'empty-reply';
         return '';
       }
       stats.ok += 1;
+      stats.consecutiveFailures = 0;
       stats.lastError = '';
       stats.lastText = text.slice(0, 80);
+      stats.lastFailAt = 0;
       return text;
     } catch (error) {
       stats.lastLatencyMs = Date.now() - started;
@@ -162,6 +188,8 @@ export function createSemantic({ ctx, settingsRef }) {
         stats.failed += 1;
         stats.lastError = message.slice(0, 120);
       }
+      stats.consecutiveFailures += 1;
+      stats.lastFailAt = Date.now();
       return '';
     } finally {
       clearTimeout(timer);
@@ -301,6 +329,8 @@ export function createSemantic({ ctx, settingsRef }) {
       expandedQueries: stats.expandedQueries,
       keywordRuns: stats.keywordRuns,
       usedReasoning: stats.usedReasoning ?? 0,
+      consecutiveFailures: stats.consecutiveFailures,
+      lastFailAt: stats.lastFailAt,
       consolidations: stats.consolidations,
       consolidated: stats.consolidated,
       lastLatencyMs: stats.lastLatencyMs,

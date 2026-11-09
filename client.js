@@ -281,6 +281,15 @@ window.__ModuleLoader__.load({
         selfcheckRun: '运行',
         times: '次',
         alertAudit: '体检发现异常，建议在设定里运行修复',
+        alertSemantic: '语义召回连续 {n} 次未返回内容（{reason}），已自动回退关键词检索',
+        semanticCheckFail: '语义模型未返回内容：{reason}',
+        semanticCheckHint: '已自动回退关键词检索，记忆功能不受影响。可在设定里换一个模型。',
+        semanticCheckOk: '语义模型可用：{text}',
+        semanticFallbackNote: '回退中：仍使用关键词检索',
+        semanticDiagTitle: '语义诊断',
+        semanticDiagRun: '诊断全部模型',
+        semanticDiagHint: '逐个模型发一次真实请求（会消耗少量额度），用来确认哪些可用',
+        semanticDiagNone: '没有任何 provider 返回内容',
         colContent: '内容',
         colKind: '类型',
         colStatus: '状态',
@@ -305,6 +314,8 @@ window.__ModuleLoader__.load({
         statFeedbackHint: '含质疑式反馈（不生效/没显示/难看等），比显式纠错更接近真实',
         corrSplit: '显式纠错 {a}% · 含质疑 {b}%',
         statCoverage: '场景覆盖',
+        alertNone: '当前没有异常',
+        alertCount: '共 {n} 项异常',
         statAlerts: '异常告警',
         semanticFollow: '跟随默认模型',
         semanticChoice: '语义模型',
@@ -733,6 +744,15 @@ window.__ModuleLoader__.load({
         selfcheckRun: 'Run',
         times: 'runs',
         alertAudit: 'Audit found issues; run repair in Settings',
+        alertSemantic: 'Semantic recall returned nothing {n} times in a row ({reason}); fell back to keyword search',
+        semanticCheckFail: 'Semantic model returned nothing: {reason}',
+        semanticCheckHint: 'Keyword search is still active, memory works. Try another model in Settings.',
+        semanticCheckOk: 'Semantic model OK: {text}',
+        semanticFallbackNote: 'Falling back: keyword search in use',
+        semanticDiagTitle: 'Semantic diagnosis',
+        semanticDiagRun: 'Test all models',
+        semanticDiagHint: 'Sends one real request per model (small cost) to see which work',
+        semanticDiagNone: 'No provider returned content',
         colContent: 'Content',
         colKind: 'Kind',
         colStatus: 'Status',
@@ -757,6 +777,8 @@ window.__ModuleLoader__.load({
         statFeedbackHint: 'Includes pushback (not working / not showing / ugly), closer to reality than explicit corrections',
         corrSplit: 'explicit {a}% · with pushback {b}%',
         statCoverage: 'Coverage',
+        alertNone: 'No alerts',
+        alertCount: '{n} alert(s)',
         statAlerts: 'Alerts',
         semanticFollow: 'Follow default model',
         semanticChoice: 'Semantic model',
@@ -1140,6 +1162,7 @@ window.__ModuleLoader__.load({
 .lx-stat-value { font-size: 19px; font-weight: 650; line-height: 1.15; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lx-stat-value[data-tone="ok"] { color: var(--dsw-alias-brand-primary); }
 .lx-stat-value[data-tone="mute"] { color: var(--dsw-alias-label-tertiary); }
+.lx-stat-value[data-tone="warn"] { color: var(--dsw-alias-state-warn-primary); }
 .lx-stat-label { font-size: 11px; line-height: 1.3; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .lx-table-wrap { width: 100%; overflow-x: auto; }
@@ -1813,6 +1836,19 @@ window.__ModuleLoader__.load({
                 }))),
             stats !== null && stats !== undefined && semanticOn
               ? h('div', { className: 'lx-field', key: 'f5' },
+                // 连续失败时用醒目颜色 + 明确说明，避免"已开启但零产出"看起来一切正常
+                Number(stats.consecutiveFailures ?? 0) >= 1
+                  ? h('div', { className: 'lx-field-hint', style: { color: 'var(--dsw-alias-state-warn-primary)' } },
+                    t('semanticFallbackNote') + ' · ' + t('semanticCheckFail').replace('{reason}', String(stats.lastError ?? 'empty-reply')))
+                  : null,
+            // 手动诊断：全量扫描会消耗多次调用，只在用户点击时运行
+            stats !== null && stats !== undefined && semanticOn
+              ? h('div', { className: 'lx-field', key: 'f5diag' },
+                h('div', { className: 'lx-field-label' }, t('semanticDiagTitle')),
+                h('div', { className: 'lx-field-hint' }, t('semanticDiagHint')),
+                h('div', { className: 'lx-field-ctl' },
+                  h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSemanticDiag }, t('semanticDiagRun'))))
+              : null,
                 h('div', { className: 'lx-field-hint' },
                   stats.calls === 0
                     ? t('semanticIdle')
@@ -2187,6 +2223,7 @@ window.__ModuleLoader__.load({
                   alert.kind === 'demote-spike' ? t('alertDemote').replace('{n}', int(alert.count))
                     : alert.kind === 'quarantine-spike' ? t('alertQuarantine').replace('{n}', int(alert.count))
                     : alert.kind === 'audit-failed' ? t('alertAudit')
+                    : alert.kind === 'semantic-empty' ? t('alertSemantic').replace('{n}', int(alert.count)).replace('{reason}', String(alert.detail ?? 'empty-reply'))
                     : t('alertCoverage').replace('{n}', int(alert.count))))))))
           : null,
 
@@ -2790,6 +2827,25 @@ window.__ModuleLoader__.load({
         // 依赖轮询时间戳：用户改了模型配置后，30 秒内列表自动跟随（无需刷新页面）
       }, [lastLoadedAt]);
 
+      const semanticDiag = () => run('semanticDiag', async () => {
+        const body = await postJson('lingxi/semantic/probe', {});
+        const attempts = Array.isArray(body.attempts) ? body.attempts : [];
+        const rows = attempts.map((entry) => ({
+          title: (String(entry.text ?? '') !== '' ? '✓ ' : '✗ ') + String(entry.provider),
+          meta: String(entry.text ?? '') !== '' ? String(entry.text) : String(entry.error ?? t('semanticIdle')),
+        }));
+        const working = Array.isArray(body.working) ? body.working : [];
+        setDetail({
+          title: t('semanticDiagTitle'),
+          subtitle: working.length === 0 ? t('semanticDiagNone') : working.join(', '),
+          rows,
+        });
+        if (body.ok !== true) {
+          setNotice({ kind: 'error', text: t('semanticCheckFail').replace('{reason}', String(body.selected?.error ?? 'empty-reply')) });
+        }
+        return t('confirmed');
+      });
+
       const semanticChoiceConfig = (picked) => run('semanticModel', async () => {
         await postJson('lingxi/injection/config', { semanticModel: picked });
         setSemanticChoice(picked === null ? '' : String(picked.provider) + '|' + String(picked.model));
@@ -3133,9 +3189,19 @@ window.__ModuleLoader__.load({
       });
 
       const semanticConfig = (next) => run('semantic', async () => {
-        await postJson('lingxi/injection/config', { semantic: next === true });
+        const body = await postJson('lingxi/injection/config', { semantic: next === true });
         setSemanticOn(next === true);
         await reload(true);
+        // 开启时后端会当场探一次模型；返回空就立刻说清楚，而不是让它静默降级。
+        const check = body?.semanticCheck ?? null;
+        if (next === true && check !== null && check.ok !== true) {
+          setNotice({
+            kind: 'error',
+            text: t('semanticCheckFail').replace('{reason}', String(check.error ?? 'empty-reply')) + ' · ' + t('semanticCheckHint'),
+          });
+        } else if (next === true && check !== null && check.ok === true) {
+          setNotice({ kind: 'ok', text: t('semanticCheckOk').replace('{text}', String(check.text ?? '')) });
+        }
         return next === true ? t('confirmed') : t('confirmed');
       });
 
@@ -3234,7 +3300,19 @@ window.__ModuleLoader__.load({
               {
                 label: t('statAlerts'),
                 value: int((data?.alerts ?? []).length),
-                tone: (data?.alerts ?? []).length > 0 ? 'mute' : 'ok',
+                tone: (data?.alerts ?? []).length > 0 ? 'warn' : 'ok',
+                onClick: () => {
+                  const list = Array.isArray(data?.alerts) ? data.alerts : [];
+                  setDetail({
+                    title: t('statAlerts'),
+                    subtitle: list.length === 0 ? t('alertNone') : t('alertCount').replace('{n}', int(list.length)),
+                    rows: list.map((alert, index) => ({
+                      title: String(alert.kind ?? '') + ' · ' + int(alert.count ?? 0),
+                      meta: String(alert.detail ?? ''),
+                      key: 'alert-' + index,
+                    })),
+                  });
+                },
               },
             ],
           }),
@@ -3282,6 +3360,7 @@ window.__ModuleLoader__.load({
               onMigrate: migrateStorage,
               onAudit: auditStore,
               onConsolidate: consolidate,
+              onSemanticDiag: semanticDiag,
               onRepair: repairStore,
               onSelfcheck: selfcheck,
               onExport: exportAll,
