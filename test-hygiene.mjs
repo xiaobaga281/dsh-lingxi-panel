@@ -178,5 +178,20 @@ await check('相对淘汰：同场景超过 2 条时保留最重要的', async (
   assert.equal(demoted.includes("b"), false, "second record kept");
   assert.ok(demoted.length >= 2, "crowded scene demotes the rest: " + JSON.stringify(demoted));
 });
+
+await check('衰减：半衰期 60 天，且 proven 不延长衰减', async () => {
+  const now = Date.now();
+  const day = 86_400_000;
+  const mk = (id, days, hits, exposures) => ({ ...base, id, kind: 'lesson', text: '当「read」遇到「FS_NOT_FOUND」时：先确认路径', evidence: 5, confidence: 0.9, hitCount: hits, missCount: 0, exposures, lastUsedAt: now - days * day, updatedAt: now - days * day });
+  assert.equal(DECAY_HALF_LIFE_DAYS, 60, 'half life must be 60 days');
+  const fresh = importanceOf(mk('a', 0, 10, 12), now);
+  const half = importanceOf(mk('b', 60, 10, 12), now);
+  // 60 天后应接近减半（允许 proven 加成带来的偏差）
+  assert.ok(half < fresh * 0.75, 'after one half-life: ' + half + ' vs ' + fresh);
+  // proven 与普通同条件衰减速率一致（不延长）
+  const provenRatio = importanceOf(mk('p', 60, 10, 12), now) - 0.12;
+  const plainRatio = importanceOf(mk('q', 60, 0, 12), now);
+  assert.ok(Math.abs(provenRatio - plainRatio) < 0.15, 'decay must be identical: ' + provenRatio + ' vs ' + plainRatio);
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

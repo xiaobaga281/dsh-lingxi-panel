@@ -238,6 +238,7 @@ export function apply(ctx, config) {
     let quarantined = 0;
     let evicted = 0;
     let merged = 0;
+    let consolidatedCount = 0;
     let demoted = 0;
     for (const item of plan.quarantine) {
       const done = await memory.confirm(item.id, 'retire', 'hygiene').catch(() => null);
@@ -248,7 +249,24 @@ export function apply(ctx, config) {
       if (done !== null) evicted += 1;
     }
     for (const item of plan.merge) {
-      const done = await memory.confirm(item.drop, 'retire', 'duplicate').catch(() => null);
+      let consolidated = false;
+      try {
+        const keepRecord = await memory.find(item.keep);
+        const dropRecord = await memory.find(item.drop);
+        if (keepRecord !== null && dropRecord !== null) {
+          const outcome = await semantic.consolidate(keepRecord.text, dropRecord.text);
+          if (outcome.merged === true) {
+            const written = await memory.patchText(item.keep, outcome.text).catch(() => null);
+            if (written !== null) {
+              consolidated = true;
+              consolidatedCount += 1;
+            }
+          }
+        }
+      } catch {
+        consolidated = false;
+      }
+      const done = await memory.confirm(item.drop, 'retire', consolidated ? 'consolidated' : 'duplicate').catch(() => null);
       if (done !== null) {
         merged += 1;
         await memory.observe(item.keep, { hit: true }).catch(() => {});
@@ -260,7 +278,7 @@ export function apply(ctx, config) {
     }
 
     const proven = records.filter((record) => String(record.status ?? '') !== 'retired' && performanceOf(record).proven).length;
-    lastHygiene = { at: Date.now(), quarantined, evicted, merged, demoted, upgraded: 0, scanned: records.length, proven };
+    lastHygiene = { at: Date.now(), quarantined, evicted, merged, demoted, upgraded: 0, scanned: records.length, proven, consolidated: consolidatedCount };
     if (quarantined + evicted + merged + demoted > 0) {
       await metrics.record({
         quarantined,

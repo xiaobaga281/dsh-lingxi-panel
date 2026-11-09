@@ -9,6 +9,9 @@
  */
 
 const EXPAND_SYSTEM = '你是检索助手。把用户查询扩展成用于记忆检索的关键词：输出 5-10 个同义/相关中文短语或词，每行一个，不要解释，不要序号。';
+/** 合并两条同类记忆：融合成一条更完整、更短的表述。 */
+const CONSOLIDATE_SYSTEM = '你是记忆整理助手。下面两条记忆说的是同一件事，请融合成一条更完整且更精炼的表述：保留双方所有不重复的信息，去掉重复部分，不要添加新信息，不要解释，只输出融合后的那一句话。';
+
 const KEYWORDS_SYSTEM = '你是检索助手。为下面这条记忆生成 5-8 个语义检索关键词（同义词、相关词、英文缩写），每行一个，不要解释，不要序号。';
 
 export function createSemantic({ ctx, settingsRef }) {
@@ -30,6 +33,8 @@ export function createSemantic({ ctx, settingsRef }) {
     skippedThrottle: 0,
     expandedQueries: 0,
     keywordRuns: 0,
+    consolidations: 0,
+    consolidated: 0,
     lastLatencyMs: 0,
     lastModel: '',
     lastExpansion: '',
@@ -229,6 +234,39 @@ export function createSemantic({ ctx, settingsRef }) {
     }
   }
 
+  /**
+   * 融合两条同类记忆。失败/为空一律返回空串，调用方回退到"保留证据多的那条"。
+   * 这是唯一的写入型语义调用：必须可回退，绝不因模型问题丢记忆。
+   */
+  async function consolidate(textA, textB) {
+    if (!enabled()) return { text: '', merged: false };
+    const a = String(textA ?? '').trim();
+    const b = String(textB ?? '').trim();
+    if (a === '' || b === '') return { text: '', merged: false };
+    if (a === b) return { text: a, merged: false };
+    if (!canCallNow()) return { text: '', merged: false };
+    stats.consolidations += 1;
+    try {
+      const raw = await complete(CONSOLIDATE_SYSTEM, '记忆 A：' + a + '\n记忆 B：' + b);
+      const text = String(raw ?? '')
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^[-*\d.、)\s]+/, '').trim())
+        .filter((line) => line.length >= 4)
+        .join(' ')
+        .trim();
+      // 质量闸：不能比任一方还短太多（说明丢信息），也不能长得离谱
+      const minLen = Math.min(a.length, b.length);
+      const maxLen = Math.max(a.length, b.length);
+      if (text === '') return { text: '', merged: false };
+      if (text.length < minLen * 0.6) return { text: '', merged: false };
+      if (text.length > maxLen * 1.8) return { text: '', merged: false };
+      stats.consolidated += 1;
+      return { text, merged: true };
+    } catch {
+      return { text: '', merged: false };
+    }
+  }
+
   /** 只读快照：面板与体检用 */
   function snapshot() {
     return {
@@ -241,6 +279,8 @@ export function createSemantic({ ctx, settingsRef }) {
       skippedThrottle: stats.skippedThrottle,
       expandedQueries: stats.expandedQueries,
       keywordRuns: stats.keywordRuns,
+      consolidations: stats.consolidations,
+      consolidated: stats.consolidated,
       lastLatencyMs: stats.lastLatencyMs,
       lastExpansion: stats.lastExpansion,
       lastError: stats.lastError,
@@ -250,5 +290,5 @@ export function createSemantic({ ctx, settingsRef }) {
     };
   }
 
-  return { isEnabled: enabled, expandQuery, keywordsFor, currentModel, snapshot };
+  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, currentModel, snapshot };
 }

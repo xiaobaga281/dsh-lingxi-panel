@@ -14,7 +14,7 @@ const ADDRESSING = /(我看看|给我做|帮你|帮我|你先|你在|我要|你�
 const PROCEDURAL = /(→|->|步骤|流程|先|然后|再)/;
 const PLACEHOLDER = /(<path>|<n>|<hex>|TODO|FIXME|\{\{[^}]*\}\})/i;
 
-export const DECAY_HALF_LIFE_DAYS = 90;
+export const DECAY_HALF_LIFE_DAYS = 60;
 
 /** 单条记录的可疑原因（空数组表示干净）。 */
 export function noiseReasons(record) {
@@ -82,14 +82,14 @@ export function importanceOf(record, now = Date.now()) {
   if (/tool-sequence|efficacy-scan/.test(source)) score += 0.04;
   if (kind === 'skill') score -= 0.05;
 
-  // 优胜：被反复验证有效的经验，不但加成，衰减也更慢（半衰期翻倍）。
+  // 优胜：被反复验证有效的经验获得重要度加成。
+  // 衰减不再延长——60 天足够验证一条经验是否优质，拖长只会让无效内容占位更久。
   const perf = performanceOf(record);
   if (perf.proven) score += 0.12;
   const lastUsed = Number(record?.lastUsedAt ?? record?.updatedAt ?? record?.createdAt ?? 0);
   if (lastUsed > 0) {
     const days = Math.max(0, (now - lastUsed) / 86_400_000);
-    const halfLife = perf.proven ? DECAY_HALF_LIFE_DAYS * 2 : DECAY_HALF_LIFE_DAYS;
-    score *= Math.pow(0.5, days / halfLife);
+    score *= Math.pow(0.5, days / DECAY_HALF_LIFE_DAYS);
   }
   return Math.max(0, Math.min(1, Math.round(score * 1000) / 1000));
 }
@@ -120,7 +120,7 @@ export function usableForInjection(
  * - evict：重要度低于阈值且长期未用 → 退休；
  * - merge：正文规范化后重复 → 保留证据多的一条，其余退休。
  */
-export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, staleDays = 120 } = {}) {
+export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, staleDays = 90 } = {}) {
   const list = Array.isArray(records) ? records : [];
   const quarantine = [];
   const evict = [];
