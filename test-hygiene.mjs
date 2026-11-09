@@ -154,5 +154,29 @@ await check('启发式抽取的历史记录视为不可靠', async () => {
   const plan = planHygiene([record], { now: Date.now() });
   assert.deepEqual(plan.quarantine.map((item) => item.id), ['heur']);
 });
+
+await check('优胜：反复验证有效的经验获得重要度加成且不被淘汰', async () => {
+  const now = Date.now();
+  const stale = now - 200 * 86_400_000;
+  // 同条件（陈旧、零命中）下唯一区别是"被验证过"
+  const proven = { ...base, id: "proven", status: "active", hitCount: 10, missCount: 1, exposures: 12, evidence: 5, confidence: 0.9, lastUsedAt: stale };
+  const plain = { ...base, id: "plain", status: "active", hitCount: 0, missCount: 0, exposures: 12, evidence: 5, confidence: 0.9, lastUsedAt: stale };
+  const impProven = importanceOf(proven, now);
+  const impPlain = importanceOf(plain, now);
+  assert.ok(impProven > impPlain, "proven should outrank plain: " + impProven + " vs " + impPlain);
+  const plan = planHygiene([proven, plain], { now });
+  const evicted = plan.evict.map((item) => item.id);
+  assert.equal(evicted.includes("proven"), false, "proven must survive evict");
+});
+
+await check('相对淘汰：同场景超过 2 条时保留最重要的', async () => {
+  const now = Date.now();
+  const mk = (id, ev) => ({ ...base, id, status: "active", kind: "lesson", text: "当「read」遇到「FS_NOT_FOUND」时：先确认路径", evidence: ev, hitCount: 0, missCount: 0, confidence: 0.8, lastUsedAt: now - 86_400_000 });
+  const plan = planHygiene([mk("a", 5), mk("b", 4), mk("c", 3), mk("d", 1)], { now });
+  const demoted = plan.demote.map((item) => item.id);
+  assert.equal(demoted.includes("a"), false, "top record kept");
+  assert.equal(demoted.includes("b"), false, "second record kept");
+  assert.ok(demoted.length >= 2, "crowded scene demotes the rest: " + JSON.stringify(demoted));
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

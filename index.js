@@ -19,7 +19,7 @@ import { createEvolver, fitnessFromDelta } from './evolve.js';
 import { applyAdoptionOverrides, inferToolMeta, lessonTextFor } from './lessons.js';
 import { sceneOf } from './scenes.js';
 import { extractInstructions } from './instructions.js';
-import { planHygiene } from './hygiene.js';
+import { performanceOf, planHygiene } from './hygiene.js';
 import {
   TOOL_DESCRIPTION,
   TOOL_RECALL_DESCRIPTION,
@@ -259,7 +259,8 @@ export function apply(ctx, config) {
       if (done !== null) demoted += 1;
     }
 
-    lastHygiene = { at: Date.now(), quarantined, evicted, merged, demoted, upgraded: 0, scanned: records.length };
+    const proven = records.filter((record) => String(record.status ?? '') !== 'retired' && performanceOf(record).proven).length;
+    lastHygiene = { at: Date.now(), quarantined, evicted, merged, demoted, upgraded: 0, scanned: records.length, proven };
     if (quarantined + evicted + merged + demoted > 0) {
       await metrics.record({
         quarantined,

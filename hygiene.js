@@ -48,6 +48,22 @@ export function noiseReasons(record) {
   return reasons;
 }
 
+/**
+ * 表现分：只统计"真的被相关验证过"的次数（曝光感知的命中率）。
+ * 与 reliability 同源，但这里回答的是"这条值不值得更强"。
+ */
+export function performanceOf(record) {
+  const hits = Number(record?.hitCount ?? 0);
+  const misses = Number(record?.missCount ?? 0);
+  const exposures = Number(record?.exposures ?? 0);
+  const cappedHits = exposures > 0 ? Math.min(hits, exposures) : hits;
+  const samples = cappedHits + Math.min(misses, exposures > 0 ? exposures : misses);
+  const rate = samples === 0 ? null : cappedHits / samples;
+  // proven：至少 5 次验证、命中率 ≥0.8 —— 这条经验被反复证明有效。
+  const proven = samples >= 5 && rate !== null && rate >= 0.8;
+  return { hits: cappedHits, misses, exposures, samples, rate, proven };
+}
+
 /** 重要度：证据、置信、命中率、来源可信度、时间衰减。 */
 export function importanceOf(record, now = Date.now()) {
   const evidence = Number(record?.evidence ?? 0);
@@ -66,10 +82,14 @@ export function importanceOf(record, now = Date.now()) {
   if (/tool-sequence|efficacy-scan/.test(source)) score += 0.04;
   if (kind === 'skill') score -= 0.05;
 
+  // 优胜：被反复验证有效的经验，不但加成，衰减也更慢（半衰期翻倍）。
+  const perf = performanceOf(record);
+  if (perf.proven) score += 0.12;
   const lastUsed = Number(record?.lastUsedAt ?? record?.updatedAt ?? record?.createdAt ?? 0);
   if (lastUsed > 0) {
     const days = Math.max(0, (now - lastUsed) / 86_400_000);
-    score *= Math.pow(0.5, days / DECAY_HALF_LIFE_DAYS);
+    const halfLife = perf.proven ? DECAY_HALF_LIFE_DAYS * 2 : DECAY_HALF_LIFE_DAYS;
+    score *= Math.pow(0.5, days / halfLife);
   }
   return Math.max(0, Math.min(1, Math.round(score * 1000) / 1000));
 }
@@ -140,7 +160,9 @@ export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, stal
       continue;
     }
     const importance = importanceOf(record, now);
-    if (importance < evictBelow && Number(record.hitCount ?? 0) === 0 && stale) {
+    const perf = performanceOf(record);
+    // 优胜保护：反复验证有效的经验不因"暂时陈旧"被淘汰。
+    if (!perf.proven && importance < evictBelow && Number(record.hitCount ?? 0) === 0 && stale) {
       evict.push({ id: record.id, importance });
       continue;
     }
@@ -220,7 +242,37 @@ export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, stal
     if (hits / (hits + misses) >= 0.3) continue;
     if (String(record.kind ?? '') !== 'lesson' && String(record.kind ?? '') !== 'constraint') continue;
     if (quarantine.some((item) => item.id === record.id)) continue;
+    // 优胜保护：已验证有效的经验不因低命中率被降级。
+    if (performanceOf(record).proven) continue;
     demote.push({ id: record.id, misses: Number(record.missCount ?? 0), reason: 'warn-ineffective' });
+  }
+
+  // 相对淘汰：同一场景键（tool|code）下活教训过多会互相稀释注入位，
+  // 只保留重要度最高的 2 条，其余退回候选（不是删除，可再验证复活）。
+  const bySceneKey = new Map();
+  for (const record of list) {
+    if (String(record.status ?? '') === 'retired') continue;
+    if (quarantine.some((item) => item.id === record.id)) continue;
+    if (evict.some((item) => item.id === record.id)) continue;
+    const meta = record.meta ?? {};
+    const match = /当「([^」]+)」遇到「([^」]+)」时/.exec(String(record.text ?? ''));
+    const tool = String(match?.[1] ?? meta.tool ?? '');
+    if (tool === '') continue;
+    const key = tool + '|' + String(match?.[2] ?? meta.code ?? '');
+    if (!bySceneKey.has(key)) bySceneKey.set(key, []);
+    bySceneKey.get(key).push(record);
+  }
+  for (const [key, bucket] of bySceneKey.entries()) {
+    if (bucket.length <= 2) continue;
+    const ranked = [...bucket].sort((a, b) => importanceOf(b, now) - importanceOf(a, now));
+    // 前 2 条保留；若其余里有 proven 的，先保护 proven 再谈淘汰
+    const keep = ranked.slice(0, 2);
+    for (const record of ranked.slice(2)) {
+      if (performanceOf(record).proven) { keep.push(record); continue; }
+      if (keep.some((item) => item.id === record.id)) continue;
+      if (demote.some((item) => item.id === record.id)) continue;
+      demote.push({ id: record.id, misses: Number(record.missCount ?? 0), reason: 'scene-crowded:' + key });
+    }
   }
 
   return { quarantine, evict, merge, demote };
