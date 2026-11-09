@@ -1080,6 +1080,7 @@ window.__ModuleLoader__.load({
   border-radius: 999px; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1);
   color: var(--dsw-alias-label-secondary); font-size: 12px; white-space: nowrap;
 }
+    .lg-pill-dot { padding: 0; width: 26px; height: 26px; justify-content: center; }
 .lg-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-state-idle-primary); flex: none; }
 .lg-dot-ok { background: var(--dsw-alias-state-success-primary); }
 .lg-dot-warn { background: var(--dsw-alias-state-warn-primary); }
@@ -3186,9 +3187,12 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'lg-title' }, t('title')),
               h('p', { className: 'lg-subtitle' }, t('subtitle'))),
             h('div', { className: 'lg-actions' },
-              h('span', { className: 'lg-pill' },
-                h('span', { className: `lg-dot ${gate?.enabled === true ? 'lg-dot-ok' : 'lg-dot-warn'}` }),
-                gate?.enabled === true ? t('injectRunning') : t('injectPaused')),
+              h('span', {
+                className: 'lg-pill lg-pill-dot',
+                title: gate?.enabled === true ? t('injectRunning') : t('injectPaused'),
+                'aria-label': gate?.enabled === true ? t('injectRunning') : t('injectPaused'),
+              },
+                h('span', { className: `lg-dot ${gate?.enabled === true ? 'lg-dot-ok' : 'lg-dot-warn'}` })),
 
               h('button', {
                 type: 'button',
