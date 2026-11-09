@@ -78,6 +78,16 @@ export function apply(ctx, config) {
 
   const memory = new LingxiMemory({ dir: memoryDir });
   const metrics = new MetricsFile(memoryDir);
+  // 同步恢复语义配置（meta 很小）：保证从第一个载荷起状态就是对的，不会闪一下关闭。
+  try {
+    const bootMeta = JSON.parse(readFileSync(path.join(memoryDir, '.meta.json'), 'utf8'));
+    if (bootMeta?.semantic !== undefined) settings.semantic = bootMeta.semantic === true;
+    settings.semanticModel = bootMeta?.semanticModel ?? null;
+    if (bootMeta?.adoptionOverrides !== undefined) applyAdoptionOverrides(bootMeta.adoptionOverrides ?? {});
+  } catch {
+    // meta 暂不存在（首次运行）就按默认
+  }
+
   const semantic = createSemantic({ ctx, settingsRef: () => settings });
   const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
   const evolver = createEvolver();
@@ -195,9 +205,7 @@ export function apply(ctx, config) {
       // 恢复采纳覆盖表：自学习得出的期望工具修正，重启不丢。
       readMeta()
         .then((metaBoot) => {
-        applyAdoptionOverrides(metaBoot?.adoptionOverrides ?? {});
-        if (metaBoot?.semantic !== undefined) settings.semantic = metaBoot.semantic === true;
-        settings.semanticModel = metaBoot?.semanticModel ?? null;
+        // 语义配置已在启动处同步恢复，这里不再重复写（避免异步覆盖用户刚在面板上的改动）。
       })
         .catch(() => {});
     }, 0);
