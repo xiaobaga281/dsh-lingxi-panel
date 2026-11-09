@@ -115,7 +115,20 @@ export function apply(ctx, config) {
         for (const provider of out.providers.slice(0, 6)) {
           const attempt = { provider, text: '', chunks: 0, types: [], error: null };
           try {
-            const probeModel = provider === out.model.provider ? out.model.model : String(out.model.model ?? '');
+            // 每个 provider 用「它自己的」首个模型：
+            // 拿别的 provider 的模型名去调，只会得到空 finish，会误判成"这个 provider 坏了"。
+            let probeModel = out.model.model;
+            if (provider !== out.model.provider) {
+              probeModel = '';
+              try {
+                const models = await llm.listModels?.(provider) ?? [];
+                const first = (Array.isArray(models) ? models : [])[0];
+                probeModel = String(typeof first === 'string' ? first : (first?.id ?? first?.name ?? ''));
+              } catch {
+                probeModel = '';
+              }
+            }
+            if (probeModel === '') continue;
             const iterable = llm.stream({
               provider,
               model: probeModel,
