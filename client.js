@@ -2418,7 +2418,9 @@ window.__ModuleLoader__.load({
               continue;
             }
             for (const model of models) {
-              pairs.push({ value: provider.id + '|' + model, label: model + '（' + provider.label + '）' });
+              const friendly = (provider.labels ?? {})[model];
+              const text = typeof friendly === 'string' && friendly !== '' ? friendly + ' · ' + model : model;
+              pairs.push({ value: provider.id + '|' + model, label: text });
             }
           }
           const saved = semanticChoice ?? '';
@@ -2657,9 +2659,12 @@ window.__ModuleLoader__.load({
           if (body.ok !== true) return;
           setSemanticOptions(body);
           const saved = body.saved ?? null;
-          setSemanticChoice(saved === null ? '' : String(saved.provider ?? '') + '|' + String(saved.model ?? ''));
+          const next = saved === null ? '' : String(saved.provider ?? '') + '|' + String(saved.model ?? '');
+          // 只在首次回填，避免轮询覆盖用户正在浏览的选择
+          setSemanticChoice((current) => (current === '' ? next : current));
         }).catch(() => {});
-      }, []);
+        // 依赖轮询时间戳：用户改了模型配置后，30 秒内列表自动跟随（无需刷新页面）
+      }, [lastLoadedAt]);
 
       const semanticChoiceConfig = (picked) => run('semanticModel', async () => {
         await postJson('lingxi/injection/config', { semanticModel: picked });
