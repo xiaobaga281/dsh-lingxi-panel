@@ -89,6 +89,73 @@ export function apply(ctx, config) {
   }
 
   const semantic = createSemantic({ ctx, settingsRef: () => settings });
+
+  // 语义召回的运行时自检：开启时启动后探一次，把"能拿到什么"记下来。
+  // 之前它长期 enabled=true 却 ok=0，因为没有可观测通道。
+  setTimeout(async () => {
+    if (settings.semantic !== true) return;
+    const out = { at: Date.now(), model: null, text: '', chunkKeys: [], error: null };
+    try {
+      const llm = ctx?.get?.('llm');
+      out.model = await semantic.currentModel();
+      if (llm === undefined || typeof llm.stream !== 'function') out.error = 'llm.stream unavailable';
+      else if (out.model === null) out.error = 'no model resolved';
+      else {
+        // 列出真实已注册路由（面板选的 provider 未必是已注册的路由名）
+        out.providers = (() => {
+          try {
+            const raw = llm.listProviders?.() ?? [];
+            return (Array.isArray(raw) ? raw : []).map((entry) => String(entry?.id ?? ''));
+          } catch {
+            return [];
+          }
+        })();
+        // 逐个路由试一次：谁能返回文本，谁才是可用的
+        out.attempts = [];
+        for (const provider of out.providers.slice(0, 6)) {
+          const attempt = { provider, text: '', chunks: 0, types: [], error: null };
+          try {
+            const probeModel = provider === out.model.provider ? out.model.model : String(out.model.model ?? '');
+            const iterable = llm.stream({
+              provider,
+              model: probeModel,
+              messages: [{
+                id: 'lingxi-probe-' + String(out.attempts.length),
+                role: 'user',
+                content: [{ type: 'text', text: '只回答两个字：你好' }],
+                source: { kind: 'user' },
+              }],
+              maxTokens: 24,
+            });
+            for await (const chunk of iterable) {
+              attempt.chunks += 1;
+              if (chunk !== null && typeof chunk === 'object') {
+                const t = String(chunk.type ?? '');
+                if (t !== '' && !attempt.types.includes(t)) attempt.types.push(t);
+                if (typeof chunk.text === 'string') attempt.text += chunk.text;
+              }
+              if (attempt.chunks >= 40) break;
+            }
+          } catch (error) {
+            attempt.error = errorMessage(error).slice(0, 80);
+          }
+          attempt.text = String(attempt.text).slice(0, 60);
+          out.attempts.push(attempt);
+        }
+        const good = out.attempts.find((entry) => entry.text !== '');
+        if (good !== undefined) {
+          out.workingProvider = good.provider;
+          out.text = good.text;
+        }
+        out.chunkKeys = out.attempts.flatMap((entry) => entry.types).filter((v, i, a) => a.indexOf(v) === i);
+      }
+    } catch (error) {
+      out.error = errorMessage(error);
+    }
+    out.text = String(out.text ?? '').slice(0, 120);
+    lastSemanticProbe = out;
+  }, 6000);
+
   const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
   const evolver = createEvolver();
   /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
@@ -126,6 +193,7 @@ export function apply(ctx, config) {
   let lastRepairedLessons = 0;
   let selfcheck = null;
   let lastSemanticOptions = null;
+  let lastSemanticProbe = null;
   let alerts = [];
   let lastAudit = null;
   let autoActivated = 0;
@@ -1171,6 +1239,8 @@ export function apply(ctx, config) {
         selfcheck,
         semanticOptions: lastSemanticOptions,
         semanticStats: semantic.snapshot(),
+        semanticProbe: lastSemanticProbe,
+        semanticProbe: lastSemanticProbe,
         audit: lastAudit,
         alerts,
         gapFilled,
@@ -1411,7 +1481,9 @@ export function apply(ctx, config) {
           selfcheck,
           semanticOptions: lastSemanticOptions,
           semanticStats: semantic.snapshot(),
+        semanticProbe: lastSemanticProbe,
         semanticStats: semantic.snapshot(),
+        semanticProbe: lastSemanticProbe,
           audit: lastAudit,
           alerts,
           evolution,
@@ -1824,6 +1896,49 @@ export function apply(ctx, config) {
         lastConsolidate = await memory.consolidate();
         await writeMeta({ lastConsolidateAt: Date.now(), lastReport: lastConsolidate });
         sendJson(response, 200, { ok: true, report: lastConsolidate });
+      });
+
+      // 诊断探针：把 llm.stream 真实返回的 chunk 形状原样打出来。
+      // 语义召回曾长期"开启但零产出"，就是因为 chunk 结构与假设不符却无从观测。
+      route('/lingxi/semantic/probe', async (request, response) => {
+        if (!allowGetPost(request, response)) return;
+        const out = { model: null, chunks: [], error: null };
+        try {
+          const llm = ctx?.get?.('llm');
+          out.model = await semantic.currentModel();
+          if (llm === undefined || typeof llm.stream !== 'function') {
+            out.error = 'llm.stream unavailable';
+          } else if (out.model === null) {
+            out.error = 'no model resolved';
+          } else {
+            const iterable = llm.stream({
+              provider: out.model.provider,
+              model: out.model.model,
+              messages: [{ role: 'user', content: '只回答两个字：你好' }],
+              maxTokens: 24,
+            });
+            let count = 0;
+            for await (const chunk of iterable) {
+              count += 1;
+              let shape = null;
+              try {
+                shape = {
+                  ctor: chunk === null ? "null" : typeof chunk,
+                  keys: chunk !== null && typeof chunk === 'object' ? Object.keys(chunk) : [],
+                  sample: String(JSON.stringify(chunk)).slice(0, 220),
+                };
+              } catch {
+                shape = { ctor: typeof chunk, keys: [], sample: "[unserializable]" };
+              }
+              out.chunks.push(shape);
+              if (count >= 6) break;
+            }
+            out.chunkCount = count;
+          }
+        } catch (error) {
+          out.error = errorMessage(error);
+        }
+        sendJson(response, 200, { ok: out.error === null, ...out });
       });
 
       route('/lingxi/semantic/options', async (request, response) => {

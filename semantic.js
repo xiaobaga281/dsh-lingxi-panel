@@ -33,12 +33,14 @@ export function createSemantic({ ctx, settingsRef }) {
     skippedThrottle: 0,
     expandedQueries: 0,
     keywordRuns: 0,
+    usedReasoning: 0,
     consolidations: 0,
     consolidated: 0,
     lastLatencyMs: 0,
     lastModel: '',
     lastExpansion: '',
     lastError: '',
+    lastText: '',
     lastAt: 0,
   };
 
@@ -97,23 +99,36 @@ export function createSemantic({ ctx, settingsRef }) {
     }, CALL_TIMEOUT);
 
     try {
+      // 严格按 harness 的 GenerateOptions：
+      //   system 是顶层字段；messages 是 RequestMessage[]；
+      //   每条消息 content 为 ContentBlock[]（{type:"text", text}），并需要 id/role/source。
+      // 之前传 {role, content:"字符串"} 会被解析成空消息，模型只回 finish，
+      // 表现为"语义召回已开启但零产出"。
       const iterable = llm.stream({
         provider: model.provider,
         model: model.model,
+        system,
         messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
+          {
+            id: 'lingxi-semantic-' + String(stats.calls),
+            role: 'user',
+            content: [{ type: 'text', text: String(user ?? '') }],
+            source: { kind: 'user' },
+          },
         ],
         maxTokens: 200,
         ...(controller !== null ? { signal: controller.signal } : {}),
       });
       let text = '';
+      let reasoning = '';
       for await (const chunk of iterable) {
         if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') {
           text += chunk.text;
+        } else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') {
+          reasoning += chunk.text;
         } else if (typeof chunk === 'string') {
           text += chunk;
-        } else if (typeof chunk?.text === 'string') {
+        } else if (chunk?.type === undefined && typeof chunk?.text === 'string') {
           text += chunk.text;
         }
         if (Date.now() - started > CALL_TIMEOUT) {
@@ -123,6 +138,11 @@ export function createSemantic({ ctx, settingsRef }) {
         }
       }
       stats.lastLatencyMs = Date.now() - started;
+      // 部分模型只走思考通道；对关键词扩展任务，思考结论同样可用。
+      if (text.trim() === '' && reasoning.trim() !== '') {
+        text = reasoning.slice(-600);
+        stats.usedReasoning = (stats.usedReasoning ?? 0) + 1;
+      }
       if (text.trim() === '') {
         stats.failed += 1;
         if (stats.lastError === '') stats.lastError = 'empty-reply';
@@ -130,6 +150,7 @@ export function createSemantic({ ctx, settingsRef }) {
       }
       stats.ok += 1;
       stats.lastError = '';
+      stats.lastText = text.slice(0, 80);
       return text;
     } catch (error) {
       stats.lastLatencyMs = Date.now() - started;
@@ -279,11 +300,13 @@ export function createSemantic({ ctx, settingsRef }) {
       skippedThrottle: stats.skippedThrottle,
       expandedQueries: stats.expandedQueries,
       keywordRuns: stats.keywordRuns,
+      usedReasoning: stats.usedReasoning ?? 0,
       consolidations: stats.consolidations,
       consolidated: stats.consolidated,
       lastLatencyMs: stats.lastLatencyMs,
       lastExpansion: stats.lastExpansion,
       lastError: stats.lastError,
+      lastText: stats.lastText,
       lastAt: stats.lastAt,
       cachedQueries: queryCache.size,
       inflight: inflight.size,
