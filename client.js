@@ -255,6 +255,7 @@ window.__ModuleLoader__.load({
         semanticLastExpansion: '最近扩展：{text}',
         semanticIdle: '尚未调用（开启后需有真实对话触发）',
         semanticError: '最近错误：{error}',
+        localOnlyNote: '全部数据仅存本机，不联网、不上传；关掉插件即完全停止。',
         settingsTitle: '设定',
         settingsInject: '注入',
         settingsMaintain: '维护',
@@ -706,6 +707,7 @@ window.__ModuleLoader__.load({
         semanticLastExpansion: 'last expansion: {text}',
         semanticIdle: 'not called yet (needs a real turn after enabling)',
         semanticError: 'last error: {error}',
+        localOnlyNote: 'All data stays on this machine: no network, no upload. Disabling the plugin stops it entirely.',
         settingsTitle: 'Settings',
         settingsInject: 'Injection',
         settingsMaintain: 'Maintenance',
@@ -1822,6 +1824,8 @@ window.__ModuleLoader__.load({
 
             h('div', { className: 'lx-divider', key: 'd2' }),
             h('div', { className: 'lx-group', key: 'g3' }, t('storageTitle')),
+            h('div', { className: 'lx-field', key: 'f0' },
+              h('div', { className: 'lx-field-hint' }, t('localOnlyNote'))),
             h('div', { className: 'lx-field', key: 'f6' },
               h('div', { className: 'lx-field-label' }, t('storageCurrentLabel')),
               h('div', { className: 'lx-field-hint', style: { wordBreak: 'break-all' } }, String(storage?.dir ?? '—')),
@@ -1832,6 +1836,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'lx-divider', key: 'd3' }),
             h('div', { className: 'lx-group', key: 'g4' }, t('settingsMaintain')),
             h('div', { className: 'lx-field-ctl', key: 'f7' },
+              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onConsolidate }, t('consolidate')),
               h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onAudit }, t('auditTitle')),
               h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onRepair }, t('repairTitle')),
               h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSelfcheck }, t('selfcheckTitle'))),
@@ -1841,7 +1846,6 @@ window.__ModuleLoader__.load({
           ))
       ];
     }
-
 
 
     function Empty({ icon, title, hint }) {
@@ -3185,11 +3189,7 @@ window.__ModuleLoader__.load({
               h('span', { className: 'lg-pill' },
                 h('span', { className: `lg-dot ${gate?.enabled === true ? 'lg-dot-ok' : 'lg-dot-warn'}` }),
                 gate?.enabled === true ? t('injectRunning') : t('injectPaused')),
-              h('span', { className: 'lg-pill' },
-                h('span', { className: 'lg-dot lg-dot-ok' }),
-                t('localOnly')),
-              h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: consolidate },
-                busy === 'consolidate' ? t('consolidating') : t('consolidate')),
+
               h('button', {
                 type: 'button',
                 className: 'lg-iconbtn',
@@ -3253,7 +3253,6 @@ window.__ModuleLoader__.load({
                 t('refreshFailed').replace('{error}', error) + (lastLoadedAt > 0 ? ' · ' + t('staleSince').replace('{time}', relTime(lastLoadedAt, t)) : ''))
             : null,
 
-
           h(Segmented, {
             value: tab,
             options: orderTabs([
@@ -3278,6 +3277,7 @@ window.__ModuleLoader__.load({
               onSemanticChoice: semanticChoiceConfig,
               onMigrate: migrateStorage,
               onAudit: auditStore,
+              onConsolidate: consolidate,
               onRepair: repairStore,
               onSelfcheck: selfcheck,
               onExport: exportAll,
