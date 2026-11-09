@@ -362,17 +362,15 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         }
         // 写入门控的最后一关：只有"能用"的记录才进上下文（候选需够强，噪音一律不注入）。
         const usable = entries.filter((entry) => usableForInjection(entry.record));
-        const fitted = buildRecallTextWithin(usable, budgetFor(dominantScene(sessionId)));
-        const block = fitted.text === ''
-          ? ''
-          : [
-              '【灵犀记忆】以下是过往会话/纠正里沉淀下来的经验，按相关度排序。',
-              '与本轮无关就忽略；与用户当前指令冲突时，以用户当前指令为准。',
-              fitted.text,
-            ].join('\n');
+        // 固定开销先算清楚：header 两行 + footer 一行都属于注入块，必须从预算里扣除。
+        const HEADER = '【灵犀记忆】以下是过往会话/纠正里沉淀下来的经验，按相关度排序。\n与本轮无关就忽略；与用户当前指令冲突时，以用户当前指令为准。';
         const footer = typeof toolsAvailable.tool === 'string'
           ? '\n如果本轮出现了长期有效的规则、偏好或教训，可调用 ' + toolsAvailable.tool + ' 记下；只记长期有效的，不必每条都记。'
           : '';
+        const fullBudget = budgetFor(dominantScene(sessionId));
+        const bodyBudget = Math.max(120, fullBudget - HEADER.length - footer.length - 2);
+        const fitted = buildRecallTextWithin(usable, bodyBudget);
+        const block = fitted.text === '' ? '' : HEADER + '\n' + fitted.text + footer;
         entry.text = block === '' ? '' : block + footer;
         entry.ids = fitted.items.map((item) => item.record.id);
         // 曝光登记：被注入过几次（用于相关命中率，不改置信度）。

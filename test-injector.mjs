@@ -617,5 +617,20 @@ await check('语义召回：默认关闭，开关状态由 settingsRef 实时反
   assert.equal(s.snapshot().enabled, true, "reflects live setting (no restart needed)");
   assert.equal(await s.expandQuery("测试"), "", "disabled model path yields no expansion");
 });
+
+await check('注入块整体不超预算（header/footer 也计入）', async () => {
+  const memory = fakeMemory({
+    text: '【灵犀记忆】\n' + '很长的记忆正文。'.repeat(200),
+    items: Array.from({ length: 20 }, (_, i) => ({
+      record: { id: 'm' + i, kind: 'fact', status: 'active', text: '事实条目' + i + '：' + '内容'.repeat(40), confidence: 0.9, scope: { kind: 'machine', id: '' }, evidence: 5, topics: ['kind:fact'], provenance: [], meta: {} },
+    })),
+  });
+  const injector = createInjector({ memory, listWorkspace: async () => 'ws-1' });
+  await injector.refresh('s1', '查一下事实');
+  const text = injector.textFor("s1");
+  const budget = injector.stats().lastBlock?.budget ?? 0;
+  assert.ok(budget > 0, "budget recorded: " + budget);
+  assert.ok(text.length <= budget, "block " + text.length + " must fit budget " + budget);
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);
