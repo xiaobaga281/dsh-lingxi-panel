@@ -212,5 +212,19 @@ await check('稀缺度：通用流程下沉，含具体知识的上浮（只调�
   assert.ok(isDerivable(generic) === true, 'derivable flag');
   assert.ok(isDerivable(withCode) === false, 'error-code lesson is NOT derivable');
 });
+
+await check('约束与偏好永不判为可推导（那是用户的意志，不是可推导常识）', async () => {
+  // 措辞极通用，但 kind 是 constraint/preference → 不下沉
+  assert.equal(scarcityOf({ text: '先确认再动手', kind: 'constraint' }), 1.0, 'generic constraint stays at baseline');
+  assert.equal(scarcityOf({ text: '不要重复劳动', kind: 'preference' }), 1.0, 'generic preference stays at baseline');
+  assert.equal(isDerivable({ text: '先确认再动手', kind: 'constraint' }), false, 'constraint never derivable');
+  // 同样措辞换成 lesson → 下沉
+  assert.ok(scarcityOf({ text: '先确认再动手', kind: 'lesson' }) <= 0.55, 'same words as lesson sink');
+  // 含具体错误码的 lesson 不下沉（FS 只有两个字符，曾因量词写错漏判）
+  const coded = { text: '当「read」遇到「FS_NOT_FOUND」时：先用 glob 确认目标存在', kind: 'lesson' };
+  assert.ok(scarcityOf(coded) >= 1.0, 'two-char prefix error code counts: ' + scarcityOf(coded));
+  // 约束即使含错误码也只是更高，不会下沉
+  assert.ok(scarcityOf({ text: '遇到 FS_NOT_FOUND 必须先 glob 确认', kind: 'constraint' }) >= 1.0, 'coded constraint');
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

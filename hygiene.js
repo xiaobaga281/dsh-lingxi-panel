@@ -81,8 +81,8 @@ const SPECIFIC_MARKERS = [
   /\/(Users|home|root|workspace|opt|etc)\//,
   /~\/\.\w+/,
   // 用显式边界代替 \b：中文汉字不属于 \w，\b 在「FS_NOT_FOUND」这类位置不成立。
-  /(?:^|[^A-Za-z0-9_])[A-Z][A-Z0-9]{2,}(?:_[A-Z0-9]+)+(?:$|[^A-Za-z0-9_])/,
-  /(?:^|[^A-Za-z0-9_])E[A-Z]{3,}(?:$|[^A-Za-z0-9_])/,
+  /(?:^|[^A-Za-z0-9_])[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+(?:$|[^A-Za-z0-9_])/,
+  /(?:^|[^A-Za-z0-9_])E[A-Z]{2,}(?:$|[^A-Za-z0-9_])/,
   /(?:^|[^A-Za-z0-9_])[\w.-]+\.(json|ya?ml|toml|ini|mjs|ts|js)(?:$|[^A-Za-z0-9_])/,
   /(?:^|[^A-Za-z0-9_@])(dsh-[\w-]+|@[\w-]+\/[\w-]+)/,
   /https?:\/\//,
@@ -99,7 +99,21 @@ const GENERIC_PATTERNS = [
 
 export function scarcityOf(record) {
   const text = String(record?.text ?? '');
+  const kind = String(record?.kind ?? '');
   if (text === '') return 0.85;
+
+  // 约束与偏好是"用户教我"的：它们表达的是**你的要求**，不是模型能自己推导的常识。
+  // 所以无论措辞多通用，都不判为可推导——这是用户的意志，不是知识密度问题。
+  if (kind === 'constraint' || kind === 'preference') {
+    let ownSpecific = 0;
+    for (const pattern of SPECIFIC_MARKERS) {
+      if (pattern.test(text)) ownSpecific += 1;
+    }
+    if (ownSpecific >= 3) return 1.15;
+    if (ownSpecific === 2) return 1.08;
+    // 至少保持在基准线，绝不因为"看着像常识"而下沉
+    return 1.0;
+  }
 
   // 具体知识优先：只要含路径/错误码/配置名/模型名，就是模型不一定知道的东西，
   // 不该因为句子里有"先确认"这类通用词就被下沉。
@@ -120,8 +134,13 @@ export function scarcityOf(record) {
   return 0.85;
 }
 
-/** 是否属于"模型本来就会做"的通用做法（供面板审阅，不用于删除）。 */
+/**
+ * 是否属于"模型本来就会做"的通用做法（供面板审阅，不用于删除）。
+ * 约束与偏好永不视为可推导：那是用户的明确要求，不是可推导的常识。
+ */
 export function isDerivable(record) {
+  const kind = String(record?.kind ?? '');
+  if (kind === 'constraint' || kind === 'preference') return false;
   return scarcityOf(record) <= 0.55;
 }
 
