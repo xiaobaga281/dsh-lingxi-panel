@@ -766,9 +766,6 @@ export function apply(ctx, config) {
       if (demoted > demoteLimit) list.push({ kind: 'demote-spike', count: demoted });
       if (lastAudit !== null && lastAudit.ok !== true) list.push({ kind: 'audit-failed', count: (lastAudit.lines ?? []).length });
       if (quarantined > Math.max(20, Math.round(live * 0.2))) list.push({ kind: 'quarantine-spike', count: quarantined });
-      // 语义召回开着却一直拿不到内容：必须让人看见，不能只躺在统计里。
-      const semAlert = semanticAlert(semantic.snapshot());
-      if (semAlert !== null) list.push(semAlert);
       const coverage = efficacy?.coverage ?? null;
       if (coverage !== null && Number(coverage.total ?? 0) > 0 && Number(coverage.covered ?? 0) === 0) {
         list.push({ kind: 'coverage-zero', count: Number(coverage.total ?? 0) });
@@ -776,6 +773,9 @@ export function apply(ctx, config) {
     } catch {
       // 告警失败不影响主流程
     }
+    // 语义告警放在 try 之外：前序步骤任何异常都不该让"模型坏了"这条被吞掉。
+    const semAlert = semanticAlert(semantic.snapshot());
+    if (semAlert !== null) list.push(semAlert);
     const previousKinds = new Set((alerts ?? []).map((alert) => alert.kind));
     const fresh = list.filter((alert) => !previousKinds.has(alert.kind));
     alerts = list;

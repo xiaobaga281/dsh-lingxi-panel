@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import {
   DECAY_HALF_LIFE_DAYS,
   importanceOf,
+  isDerivable,
+  scarcityOf,
   noiseReasons,
   planHygiene,
   usableForInjection,
@@ -157,7 +159,8 @@ await check('启发式抽取的历史记录视为不可靠', async () => {
 
 await check('优胜：反复验证有效的经验获得重要度加成且不被淘汰', async () => {
   const now = Date.now();
-  const stale = now - 200 * 86_400_000;
+  // 15 天半衰期下用 10 天未用：衰减后仍可分辨 proven 加成（200 天会归零，比较无意义）
+  const stale = now - 10 * 86_400_000;
   // 同条件（陈旧、零命中）下唯一区别是"被验证过"
   const proven = { ...base, id: "proven", status: "active", hitCount: 10, missCount: 1, exposures: 12, evidence: 5, confidence: 0.9, lastUsedAt: stale };
   const plain = { ...base, id: "plain", status: "active", hitCount: 0, missCount: 0, exposures: 12, evidence: 5, confidence: 0.9, lastUsedAt: stale };
@@ -179,19 +182,35 @@ await check('相对淘汰：同场景超过 2 条时保留最重要的', async (
   assert.ok(demoted.length >= 2, "crowded scene demotes the rest: " + JSON.stringify(demoted));
 });
 
-await check('衰减：半衰期 60 天，且 proven 不延长衰减', async () => {
+await check('衰减：半衰期 15 天，且 proven 不延长衰减', async () => {
   const now = Date.now();
   const day = 86_400_000;
   const mk = (id, days, hits, exposures) => ({ ...base, id, kind: 'lesson', text: '当「read」遇到「FS_NOT_FOUND」时：先确认路径', evidence: 5, confidence: 0.9, hitCount: hits, missCount: 0, exposures, lastUsedAt: now - days * day, updatedAt: now - days * day });
-  assert.equal(DECAY_HALF_LIFE_DAYS, 60, 'half life must be 60 days');
+  assert.equal(DECAY_HALF_LIFE_DAYS, 15, 'half life must be 15 days (one model-capability generation)');
   const fresh = importanceOf(mk('a', 0, 10, 12), now);
-  const half = importanceOf(mk('b', 60, 10, 12), now);
+  const half = importanceOf(mk('b', 15, 10, 12), now);
   // 60 天后应接近减半（允许 proven 加成带来的偏差）
   assert.ok(half < fresh * 0.75, 'after one half-life: ' + half + ' vs ' + fresh);
   // proven 与普通同条件衰减速率一致（不延长）
-  const provenRatio = importanceOf(mk('p', 60, 10, 12), now) - 0.12;
-  const plainRatio = importanceOf(mk('q', 60, 0, 12), now);
+  const provenRatio = importanceOf(mk('p', 15, 10, 12), now) - 0.12;
+  const plainRatio = importanceOf(mk('q', 15, 0, 12), now);
   assert.ok(Math.abs(provenRatio - plainRatio) < 0.15, 'decay must be identical: ' + provenRatio + ' vs ' + plainRatio);
+});
+
+await check('稀缺度：通用流程下沉，含具体知识的上浮（只调排序不删除）', async () => {
+  const generic = { text: '改写流程（5 步）：write → pwsh → write → pwsh → write' };
+  const generic2 = { text: '先确认路径再重试' };
+  const withCode = { text: '当「read」遇到「FS_NOT_FOUND」时：先用 glob 确认目标存在' };
+  const withPath = { text: '存储在 C:\\Users\\x\\.dsh\\lingxi-memory' };
+  const withModel = { text: '语义模型用 trae/deepseek-v4.1-flash' };
+  assert.ok(scarcityOf(generic) <= 0.55, 'pure tool sequence sinks: ' + scarcityOf(generic));
+  assert.ok(scarcityOf(generic2) <= 0.55, 'generic advice sinks: ' + scarcityOf(generic2));
+  assert.ok(scarcityOf(withCode) > 0.55, 'error code counts as knowledge: ' + scarcityOf(withCode));
+  assert.ok(scarcityOf(withPath) >= 1.0, 'path is specific: ' + scarcityOf(withPath));
+  assert.ok(scarcityOf(withModel) >= 1.0, 'model name is specific: ' + scarcityOf(withModel));
+  // 中文边界：错误码夹在「」里也必须识别（\\b 在 CJK 上不成立）
+  assert.ok(isDerivable(generic) === true, 'derivable flag');
+  assert.ok(isDerivable(withCode) === false, 'error-code lesson is NOT derivable');
 });
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

@@ -1376,6 +1376,20 @@ window.__ModuleLoader__.load({
     }
     /* ================================================================ 格式化 */
 
+    /** 把语义失败原因翻译成人话：用户不该看到 empty-reply 这种机器码。 */
+    function semanticReason(code, t) {
+      const value = String(code ?? '');
+      if (value === '') return '—';
+      if (value.startsWith('provider-not-registered:')) {
+        return t('semReasonProvider').replace('{name}', value.slice('provider-not-registered:'.length));
+      }
+      if (value === 'empty-reply') return t('semReasonEmpty');
+      if (value === 'timeout') return t('semReasonTimeout');
+      if (value === 'no-model') return t('semReasonNoModel');
+      if (value === 'no-llm-service') return t('semReasonNoService');
+      return value;
+    }
+
     function int(value) {
       const n = Number.isFinite(value) ? Math.round(value) : 0;
       return n.toLocaleString();
@@ -1839,7 +1853,7 @@ window.__ModuleLoader__.load({
                 // 连续失败时用醒目颜色 + 明确说明，避免"已开启但零产出"看起来一切正常
                 Number(stats.consecutiveFailures ?? 0) >= 1
                   ? h('div', { className: 'lx-field-hint', style: { color: 'var(--dsw-alias-state-warn-primary)' } },
-                    t('semanticFallbackNote') + ' · ' + t('semanticCheckFail').replace('{reason}', String(stats.lastError ?? 'empty-reply')))
+                    t('semanticFallbackNote') + ' · ' + t('semanticCheckFail').replace('{reason}', semanticReason(stats.lastError, t)))
                   : null,
             // 手动诊断：全量扫描会消耗多次调用，只在用户点击时运行
             stats !== null && stats !== undefined && semanticOn
@@ -3197,7 +3211,7 @@ window.__ModuleLoader__.load({
         if (next === true && check !== null && check.ok !== true) {
           setNotice({
             kind: 'error',
-            text: t('semanticCheckFail').replace('{reason}', String(check.error ?? 'empty-reply')) + ' · ' + t('semanticCheckHint'),
+            text: t('semanticCheckFail').replace('{reason}', semanticReason(check.error, t)) + ' · ' + t('semanticCheckHint'),
           });
         } else if (next === true && check !== null && check.ok === true) {
           setNotice({ kind: 'ok', text: t('semanticCheckOk').replace('{text}', String(check.text ?? '')) });

@@ -6,6 +6,7 @@
  * 让注入的前 k 条不是同一个意思的五种说法。
  */
 import { bigrams, effectiveConfidence, isCurrent, mayInject, normalizeText, textSimilarity } from './schema.js';
+import { scarcityOf } from '../hygiene.js';
 
 const K1 = 1.2;
 const B = 0.75;
@@ -197,8 +198,12 @@ export function search(records, query, options = {}) {
     const recordCode = String(record.meta?.code ?? '');
     const textHasCode = codeHints.some((code) => recordCode === code || String(record.text ?? '').includes(code));
     const codeBonus = textHasCode ? 4 : 0;
-    const score = rrf * 100 + structural + lexicalBonus + topicBonus + reliabilityBonus + codeBonus;
-    return { record, score, lexical, vector, effective, topicHit: topicHit.length };
+    // 稀缺度：记忆的价值 = 模型不知道的信息量。
+    // 通用流程（write → pwsh → write 这类）模型本来就会做，注入它只占预算，
+    // 模型能力升级后还会变成多余约束。这里只调排序，不删除任何记录。
+    const scarcity = scarcityOf(record);
+    const score = (rrf * 100 + structural + lexicalBonus + topicBonus + reliabilityBonus + codeBonus) * scarcity;
+    return { record, score, lexical, vector, effective, topicHit: topicHit.length, scarcity };
   });
 
   fused.sort((a, b) => b.score - a.score || b.effective - a.effective);

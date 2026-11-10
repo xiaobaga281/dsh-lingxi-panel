@@ -74,7 +74,7 @@ export function createSemantic({ ctx, settingsRef }) {
       if (picked !== null
         && typeof picked.provider === 'string' && picked.provider !== ''
         && typeof picked.model === 'string' && picked.model !== '') {
-        return { provider: picked.provider, model: picked.model };
+        return { provider: picked.provider, model: picked.model, source: 'picked' };
       }
       const selector = ctx?.get?.('agentDefaultModel');
       const selection = selector?.currentSelection?.();
@@ -82,7 +82,7 @@ export function createSemantic({ ctx, settingsRef }) {
       const provider = String(selection.provider ?? '');
       const model = String(selection.model ?? '');
       if (provider === '' || model === '') return null;
-      return { provider, model };
+      return { provider, model, source: 'default' };
     } catch {
       return null;
     }
@@ -106,9 +106,25 @@ export function createSemantic({ ctx, settingsRef }) {
       stats.lastError = 'no-llm-service';
       return '';
     }
+    // 配置可能已被改掉：provider 不再注册时给出准确原因，
+    // 而不是发一次注定失败的请求后报 empty-reply。
+    try {
+      const known = llm.listProviders?.() ?? [];
+      const ids = (Array.isArray(known) ? known : []).map((entry) => String(entry?.id ?? '')).filter((id) => id !== '');
+      if (ids.length > 0 && !ids.includes(model.provider)) {
+        stats.failed += 1;
+        stats.consecutiveFailures += 1;
+        stats.lastFailAt = Date.now();
+        stats.lastError = 'provider-not-registered:' + model.provider;
+        return '';
+      }
+    } catch {
+      // 列表拿不到就照常尝试
+    }
     const started = Date.now();
     stats.calls += 1;
     stats.lastModel = model.provider + '/' + model.model;
+    stats.lastModelSource = String(model.source ?? '');
     stats.lastAt = started;
 
     const controller = typeof AbortController === 'function' ? new AbortController() : null;

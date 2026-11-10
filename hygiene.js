@@ -14,7 +14,7 @@ const ADDRESSING = /(我看看|给我做|帮你|帮我|你先|你在|我要|你�
 const PROCEDURAL = /(→|->|步骤|流程|先|然后|再)/;
 const PLACEHOLDER = /(<path>|<n>|<hex>|TODO|FIXME|\{\{[^}]*\}\})/i;
 
-export const DECAY_HALF_LIFE_DAYS = 60;
+export const DECAY_HALF_LIFE_DAYS = 15;
 
 /** 单条记录的可疑原因（空数组表示干净）。 */
 export function noiseReasons(record) {
@@ -64,6 +64,67 @@ export function performanceOf(record) {
   return { hits: cappedHits, misses, exposures, samples, rate, proven };
 }
 
+/**
+ * 稀缺度：这条内容对模型来说有多少"意外"。
+ *
+ * 动机：记忆的价值 = 模型不知道的信息量，而不是它被用了多少次。
+ * 「write → pwsh → write」这类通用流程，模型本来就会做；注入它不增加信息，
+ * 却占掉注入预算，并在模型能力升级后变成多余的约束。
+ *
+ * 返回 0.55 ~ 1.15 的乘数：含具体项目知识的上浮，纯通用做法的下沉。
+ * 只调排序，不删除任何记录——随时可回退，也不会误杀。
+ */
+
+/* 具体知识标记：路径、错误码、配置文件名、插件名、URL、端口、具体模型名。 */
+const SPECIFIC_MARKERS = [
+  /[A-Za-z]:[\\/]/,
+  /\/(Users|home|root|workspace|opt|etc)\//,
+  /~\/\.\w+/,
+  // 用显式边界代替 \b：中文汉字不属于 \w，\b 在「FS_NOT_FOUND」这类位置不成立。
+  /(?:^|[^A-Za-z0-9_])[A-Z][A-Z0-9]{2,}(?:_[A-Z0-9]+)+(?:$|[^A-Za-z0-9_])/,
+  /(?:^|[^A-Za-z0-9_])E[A-Z]{3,}(?:$|[^A-Za-z0-9_])/,
+  /(?:^|[^A-Za-z0-9_])[\w.-]+\.(json|ya?ml|toml|ini|mjs|ts|js)(?:$|[^A-Za-z0-9_])/,
+  /(?:^|[^A-Za-z0-9_@])(dsh-[\w-]+|@[\w-]+\/[\w-]+)/,
+  /https?:\/\//,
+  /:\d{4,5}(?:$|[^0-9])/,
+  /(?:^|[^A-Za-z0-9_])(gpt|claude|deepseek|glm|qwen|spark|trae|loom)[\w.-]*/i,
+];
+
+/* 通用做法标记：纯工具序列、通用建议用语。 */
+const GENERIC_PATTERNS = [
+  /(流程|步骤)[^：:]{0,12}[：:]\s*[\w_]+\s*(→|->)\s*[\w_]+/,
+  /^[\s\w（）()：:→|、,，-]*(write|read|edit|pwsh|bash|glob|grep|present|apply_patch)[\s\w（）()：:→|、,，-]*$/i,
+  /(先确认|先检查|再重试|不要重复|先读|再改|确认路径|确认存在)/,
+];
+
+export function scarcityOf(record) {
+  const text = String(record?.text ?? '');
+  if (text === '') return 0.85;
+
+  // 具体知识优先：只要含路径/错误码/配置名/模型名，就是模型不一定知道的东西，
+  // 不该因为句子里有"先确认"这类通用词就被下沉。
+  let specific = 0;
+  for (const pattern of SPECIFIC_MARKERS) {
+    if (pattern.test(text)) specific += 1;
+  }
+  if (specific >= 3) return 1.15;
+  if (specific === 2) return 1.08;
+  if (specific === 1) return 1.0;
+
+  // 到这里已确认：全文没有任何具体知识标记。
+  // 此时若仍是通用做法（纯工具序列 / 通用建议语），才算"模型本来就会"。
+  const generic = GENERIC_PATTERNS.some((pattern) => pattern.test(text));
+  if (generic) return 0.55;
+
+  // 无具体标记也不像通用流程：轻度下沉（信息量存疑但不武断）。
+  return 0.85;
+}
+
+/** 是否属于"模型本来就会做"的通用做法（供面板审阅，不用于删除）。 */
+export function isDerivable(record) {
+  return scarcityOf(record) <= 0.55;
+}
+
 /** 重要度：证据、置信、命中率、来源可信度、时间衰减。 */
 export function importanceOf(record, now = Date.now()) {
   const evidence = Number(record?.evidence ?? 0);
@@ -83,7 +144,7 @@ export function importanceOf(record, now = Date.now()) {
   if (kind === 'skill') score -= 0.05;
 
   // 优胜：被反复验证有效的经验获得重要度加成。
-  // 衰减不再延长——60 天足够验证一条经验是否优质，拖长只会让无效内容占位更久。
+  // 衰减不再延长——15 天约等于模型能力的一次换代周期：更久只会让过时内容占位。
   const perf = performanceOf(record);
   if (perf.proven) score += 0.12;
   const lastUsed = Number(record?.lastUsedAt ?? record?.updatedAt ?? record?.createdAt ?? 0);
@@ -120,7 +181,7 @@ export function usableForInjection(
  * - evict：重要度低于阈值且长期未用 → 退休；
  * - merge：正文规范化后重复 → 保留证据多的一条，其余退休。
  */
-export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, staleDays = 90 } = {}) {
+export function planHygiene(records, { now = Date.now(), evictBelow = 0.12, staleDays = 30 } = {}) {
   const list = Array.isArray(records) ? records : [];
   const quarantine = [];
   const evict = [];
