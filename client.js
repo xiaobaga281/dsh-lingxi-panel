@@ -286,6 +286,20 @@ window.__ModuleLoader__.load({
         semanticCheckHint: '已自动回退关键词检索，记忆功能不受影响。可在设定里换一个模型。',
         semanticCheckOk: '语义模型可用：{text}',
         semanticFallbackNote: '回退中：仍使用关键词检索',
+        reviewTitle: '记忆复盘',
+        reviewHint: '让模型逐条审查：分类是否错误、是否已经没有价值。只给建议，不自动改。',
+        reviewRun: '开始复盘',
+        reviewRunning: '复盘进行中…',
+        reviewNone: '模型认为当前记忆都合理',
+        reviewScanned: '已审查 {n} 条',
+        reviewApply: '应用选中项',
+        reviewApplied: '已应用：改类型 {r} 条，清除 {d} 条',
+        reviewNeedSemantic: '需要先开启语义召回（复盘要调用模型）',
+        reviewVerdictKeep: '保留',
+        reviewVerdictReclass: '改类型',
+        reviewVerdictDrop: '清除',
+        reviewSelectAll: '全选非保留项',
+        reviewNoneSelected: '未选择任何项',
         semanticDiagTitle: '语义诊断',
         semanticDiagRun: '诊断全部模型',
         semanticDiagHint: '逐个模型发一次真实请求（会消耗少量额度），用来确认哪些可用',
@@ -749,6 +763,20 @@ window.__ModuleLoader__.load({
         semanticCheckHint: 'Keyword search is still active, memory works. Try another model in Settings.',
         semanticCheckOk: 'Semantic model OK: {text}',
         semanticFallbackNote: 'Falling back: keyword search in use',
+        reviewTitle: 'Memory review',
+        reviewHint: 'The model audits each memory: misclassified, or no longer worth keeping. Suggestions only.',
+        reviewRun: 'Run review',
+        reviewRunning: 'Reviewing…',
+        reviewNone: 'The model found nothing to change',
+        reviewScanned: '{n} reviewed',
+        reviewApply: 'Apply selected',
+        reviewApplied: 'Applied: {r} reclassified, {d} cleared',
+        reviewNeedSemantic: 'Enable semantic recall first (review calls the model)',
+        reviewVerdictKeep: 'Keep',
+        reviewVerdictReclass: 'Reclassify',
+        reviewVerdictDrop: 'Clear',
+        reviewSelectAll: 'Select all non-keep',
+        reviewNoneSelected: 'Nothing selected',
         semanticDiagTitle: 'Semantic diagnosis',
         semanticDiagRun: 'Test all models',
         semanticDiagHint: 'Sends one real request per model (small cost) to see which work',
@@ -2427,7 +2455,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats }) {
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked }) {
       const health = memory?.health ?? null;
       const hygiene = memory?.hygiene ?? null;
       const pending = memory?.pending ?? [];
@@ -2563,6 +2591,60 @@ window.__ModuleLoader__.load({
               empty: t('noPending'),
             })),
 
+        /* 记忆复盘：模型审查分类与价值，只给建议 */
+        h(Collapsible, { title: t('reviewTitle'), hint: t('reviewHint') },
+
+          h('div', { className: 'lx-section' },
+            h('div', { className: 'lx-section-title' }, t('reviewTitle')),
+            h('div', { className: 'lx-section-actions' }, [
+              h('button', { key: 'run', type: 'button', className: 'lg-btn lg-btn-primary', disabled: busy !== '', onClick: onReview },
+                busy === 'review' ? t('reviewRunning') : t('reviewRun')),
+              reviewState !== null && (reviewState.suggestions ?? []).length > 0
+                ? h('button', { key: 'apply', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onApplyReview }, t('reviewApply'))
+                : null,
+            ])),
+
+          reviewState === null
+            ? h('div', { className: 'lx-table-empty' }, t('reviewHint'))
+            : (reviewState.suggestions ?? []).length === 0
+              ? h('div', { className: 'lx-table-empty' }, t('reviewNone'))
+              : h(DataTable, {
+                columns: [
+                  {
+                    key: 'pick',
+                    label: '',
+                    width: '34px',
+                    render: (row) => h('input', {
+                      type: 'checkbox',
+                      checked: reviewPicked[row.id] === true,
+                      disabled: row.verdict === 'keep',
+                      onChange: (event) => setReviewPicked({ ...reviewPicked, [row.id]: event.target.checked }),
+                    }),
+                  },
+                  { key: 'text', label: t('colContent'), width: '38%', render: (row) => h('span', { className: 'lx-cell-main' }, String(row.text ?? '').slice(0, 70)) },
+                  {
+                    key: 'verdict',
+                    label: t('colStatus'),
+                    render: (row) => {
+                      if (row.verdict === 'keep') return h(Chip, { kind: 'ok', children: t('reviewVerdictKeep') });
+                      if (row.verdict === 'drop') return h(Chip, { kind: 'warn', children: t('reviewVerdictDrop') });
+                      return h(Chip, { kind: 'accent', children: t('reviewVerdictReclass') + ' → ' + String(row.kind ?? '') });
+                    },
+                  },
+                  { key: 'from', label: t('colKind'), render: (row) => h('span', { className: 'lg-card-hint' }, String(row.currentKind ?? '')) },
+                  { key: 'reason', label: t('colSource'), render: (row) => h('span', { className: 'lg-card-hint' }, String(row.reason ?? '')) },
+                ],
+                rows: reviewState.suggestions ?? [],
+                rowKey: (row) => row.id,
+                empty: t('reviewNone'),
+              }),
+
+          reviewState !== null && String(reviewState.error ?? '') !== ''
+            ? h('div', { className: 'lx-field-hint', style: { color: 'var(--dsw-alias-state-warn-primary)' } }, String(reviewState.error))
+            : null,
+        ),
+
+        /* 运维工具 */
         /* 运维工具 */
         h(Collapsible, { title: t('opsTitle'), hint: t('opsHint') },
 
@@ -2840,6 +2922,48 @@ window.__ModuleLoader__.load({
         }).catch(() => {});
         // 依赖轮询时间戳：用户改了模型配置后，30 秒内列表自动跟随（无需刷新页面）
       }, [lastLoadedAt]);
+
+      const [reviewState, setReviewState] = React.useState(null);
+      const [reviewPicked, setReviewPicked] = React.useState({});
+
+      const runReview = () => run('review', async () => {
+        setNotice({ kind: 'ok', text: t('reviewRunning') });
+        const body = await postJson('lingxi/memory/review', {});
+        if (body.ok !== true && body.error === 'semantic-disabled') {
+          setNotice({ kind: 'error', text: t('reviewNeedSemantic') });
+          return t('reviewNeedSemantic');
+        }
+        const suggestions = Array.isArray(body.suggestions) ? body.suggestions : [];
+        setReviewState({ suggestions, scanned: Number(body.scanned ?? 0), error: String(body.error ?? '') });
+        // 默认勾选所有需要变更的项（保留项无需处理）
+        const picked = {};
+        for (const item of suggestions) {
+          if (item.verdict === 'reclass' || item.verdict === 'drop') picked[item.id] = true;
+        }
+        setReviewPicked(picked);
+        await reload(true);
+        if (suggestions.length === 0) {
+          setNotice({ kind: 'ok', text: t('reviewNone') });
+          return t('reviewNone');
+        }
+        return t('reviewScanned').replace('{n}', int(body.scanned ?? 0));
+      });
+
+      const applyReview = () => run('reviewApply', async () => {
+        const items = (reviewState?.suggestions ?? [])
+          .filter((item) => reviewPicked[item.id] === true)
+          .map((item) => ({ id: item.id, verdict: item.verdict, kind: item.kind }));
+        if (items.length === 0) {
+          setNotice({ kind: 'error', text: t('reviewNoneSelected') });
+          return t('reviewNoneSelected');
+        }
+        const body = await postJson('lingxi/memory/review/apply', { items });
+        setNotice({ kind: body.ok === true ? 'ok' : 'error', text: t('reviewApplied').replace('{r}', int(body.reclassed ?? 0)).replace('{d}', int(body.dropped ?? 0)) });
+        setReviewState(null);
+        setReviewPicked({});
+        await reload(true);
+        return t('confirmed');
+      });
 
       const semanticDiag = () => run('semanticDiag', async () => {
         const body = await postJson('lingxi/semantic/probe', {});
@@ -3232,7 +3356,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

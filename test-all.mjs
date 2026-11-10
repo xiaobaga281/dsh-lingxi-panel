@@ -14,6 +14,7 @@ const suites = [
   ['指标', 'test-metrics.mjs'],
   ['进化', 'test-evolve.mjs'],
   ['卫生', 'test-hygiene.mjs'],
+  ['复盘', 'test-review.mjs'],
   ['记忆工具', 'test-memorytool.mjs'],
   ['检索基准', 'test-eval.mjs'],
 ];

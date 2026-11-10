@@ -179,6 +179,12 @@ export class LingxiMemory {
     return this.store.patchMeta(id, patch);
   }
 
+  /** 改类型（复盘纠正误分类时使用）。 */
+  async patchKind(id, kind) {
+    await this.store.load();
+    return this.store.patchKind(id, kind);
+  }
+
   async purge(filter = {}, options = {}) {
     await this.store.load();
     return this.store.purge(filter, options);

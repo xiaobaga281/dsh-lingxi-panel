@@ -89,7 +89,7 @@ export function createSemantic({ ctx, settingsRef }) {
   }
 
   /** 用 llm.stream 发一次补全；带硬超时，失败返回空串 */
-  async function complete(system, user) {
+  async function complete(system, user, { maxTokens = 200 } = {}) {
     const model = await currentModel();
     if (model === null) {
       stats.failed += 1;
@@ -154,7 +154,7 @@ export function createSemantic({ ctx, settingsRef }) {
             source: { kind: 'user' },
           },
         ],
-        maxTokens: 200,
+        maxTokens,
         ...(controller !== null ? { signal: controller.signal } : {}),
       });
       let text = '';
@@ -332,6 +332,16 @@ export function createSemantic({ ctx, settingsRef }) {
     }
   }
 
+  /**
+   * 原始补全：给复盘这类需要自定义提示词的场景用。
+   * 与 expandQuery 共享模型解析、超时与统计，但不做关键词解析。
+   */
+  async function completeRaw(system, user, { maxTokens = 600 } = {}) {
+    if (!enabled()) return '';
+    if (!canCallNow()) return '';
+    return complete(system, String(user ?? ''), { maxTokens });
+  }
+
   /** 只读快照：面板与体检用 */
   function snapshot() {
     return {
@@ -359,5 +369,5 @@ export function createSemantic({ ctx, settingsRef }) {
     };
   }
 
-  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, currentModel, snapshot };
+  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, currentModel, snapshot };
 }

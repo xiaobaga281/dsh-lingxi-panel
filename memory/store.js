@@ -237,6 +237,24 @@ export class MemoryStore {
   }
 
   /** 打补丁：合并 meta 并保存（用于回填旧记录的 tool/code）。 */
+  /**
+   * 改类型（kind）。复盘会据此纠正被误分类的记录：
+   * 例如"纠正时该怎么做"本属约束，却被自动抽取标成了 lesson。
+   */
+  async patchKind(id, kind) {
+    await this.load();
+    const record = this.records.get(String(id));
+    if (record === undefined) return null;
+    const allowed = ['constraint', 'preference', 'fact', 'lesson', 'skill'];
+    if (!allowed.includes(String(kind))) return null;
+    record.kind = String(kind);
+    record.updatedAt = Date.now();
+    this.dirty = true;
+    this.version += 1;
+    await this.save();
+    return record;
+  }
+
   async patchMeta(id, patch) {
     await this.load();
     const record = this.records.get(String(id));

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { LingxiMemory } from './memory/index.js';
 import { canonicalFailure, createInjector, userMessageText } from './injector.js';
 import { createSemantic, semanticAlert } from './semantic.js';
+import { createReviewer } from './review.js';
 import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures } from './metrics.js';
 import { annotate } from './noise.js';
 import { mayInject } from './memory/schema.js';
@@ -149,6 +150,7 @@ export function apply(ctx, config) {
     };
   }, 6000);
 
+  const reviewer = createReviewer({ ctx, settingsRef: () => settings, semantic });
   const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
   const evolver = createEvolver();
   /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
@@ -187,6 +189,7 @@ export function apply(ctx, config) {
   let selfcheck = null;
   let lastSemanticOptions = null;
   let lastSemanticProbe = null;
+  let lastReview = null;
   let alerts = [];
   let lastAudit = null;
   let autoActivated = 0;
@@ -1236,7 +1239,9 @@ export function apply(ctx, config) {
         semanticOptions: lastSemanticOptions,
         semanticStats: semantic.snapshot(),
         semanticProbe: lastSemanticProbe,
+        review: lastReview,
         semanticProbe: lastSemanticProbe,
+        review: lastReview,
         audit: lastAudit,
         alerts,
         gapFilled,
@@ -1478,8 +1483,10 @@ export function apply(ctx, config) {
           semanticOptions: lastSemanticOptions,
           semanticStats: semantic.snapshot(),
         semanticProbe: lastSemanticProbe,
+        review: lastReview,
         semanticStats: semantic.snapshot(),
         semanticProbe: lastSemanticProbe,
+        review: lastReview,
           audit: lastAudit,
           alerts,
           evolution,
@@ -1945,6 +1952,70 @@ export function apply(ctx, config) {
           }
           const working = attempts.filter((entry) => entry.text !== '').map((entry) => entry.provider);
           sendJson(response, 200, { ok: selected.ok === true, selected, attempts, working });
+        } catch (error) {
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
+        }
+      });
+
+      // 记忆复盘：让模型审查每条记忆的分类与价值。
+      // 只返回建议，不直接改库——应用由 /lingxi/memory/review/apply 完成。
+      route('/lingxi/memory/review', async (request, response) => {
+        if (!allowGetPost(request, response)) return;
+        try {
+          await ensureMemory();
+          if (settings.semantic !== true) {
+            sendJson(response, 200, { ok: false, error: 'semantic-disabled' });
+            return;
+          }
+          const records = await memory.list({ limit: 200 });
+          const items = records
+            .filter((record) => String(record.status ?? '') !== 'retired')
+            .map((record) => ({ id: record.id, kind: record.kind, text: record.text }));
+          const outcome = await reviewer.review(items);
+          // 把建议与实际记录对齐，附带当前 kind，便于面板展示"从→到"
+          const byId = new Map(records.map((record) => [record.id, record]));
+          const suggestions = outcome.verdicts.map((verdict) => {
+            const record = byId.get(verdict.id);
+            return {
+              ...verdict,
+              currentKind: String(record?.kind ?? ''),
+              text: String(record?.text ?? '').slice(0, 120),
+            };
+          });
+          lastReview = { at: Date.now(), suggestions, error: outcome.error };
+          sendJson(response, 200, { ok: outcome.ok, suggestions, error: outcome.error, scanned: items.length });
+        } catch (error) {
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
+        }
+      });
+
+      // 应用复盘建议：逐条执行，全部可回退（改类型可再改回，删除进 backup）。
+      route('/lingxi/memory/review/apply', async (request, response) => {
+        if (!allowGetPost(request, response)) return;
+        try {
+          await ensureMemory();
+          const body = await readBody(request);
+          const wanted = Array.isArray(body?.items) ? body.items : [];
+          let reclassed = 0;
+          let dropped = 0;
+          const failed = [];
+          for (const item of wanted.slice(0, 200)) {
+            const id = String(item?.id ?? '');
+            const verdict = String(item?.verdict ?? '');
+            if (id === '') continue;
+            if (verdict === 'reclass') {
+              const kind = String(item?.kind ?? '');
+              const done = await memory.patchKind(id, kind).catch(() => null);
+              if (done === null) failed.push(id);
+              else reclassed += 1;
+            } else if (verdict === 'drop') {
+              const done = await memory.confirm(id, 'retire', 'review-drop').catch(() => null);
+              if (done === null) failed.push(id);
+              else dropped += 1;
+            }
+          }
+          await writeStatus();
+          sendJson(response, 200, { ok: failed.length === 0, reclassed, dropped, failed });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
