@@ -301,6 +301,9 @@ window.__ModuleLoader__.load({
         reviewSelectAll: '全选非保留项',
         reviewNoneSelected: '未选择任何项',
         semanticDiagTitle: '语义诊断',
+        semanticTestNow: '测试当前模型',
+        semanticTestOk: '模型可用',
+        semanticTestTitle: '语义召回不可用',
         semanticDiagRun: '诊断全部模型',
         semanticDiagHint: '逐个模型发一次真实请求（会消耗少量额度），用来确认哪些可用',
         semanticDiagNone: '没有任何 provider 返回内容',
@@ -330,6 +333,8 @@ window.__ModuleLoader__.load({
         statCoverage: '场景覆盖',
         alertNone: '当前没有异常',
         alertCount: '共 {n} 项异常',
+        globalAlertTitle: '灵犀记忆：语义召回不可用',
+        globalAlertHint: '已自动回退关键词检索，记忆功能不受影响。可在灵犀面板「设定」里换一个模型。',
         statAlerts: '异常告警',
         semanticFollow: '跟随默认模型',
         semanticChoice: '语义模型',
@@ -778,6 +783,9 @@ window.__ModuleLoader__.load({
         reviewSelectAll: 'Select all non-keep',
         reviewNoneSelected: 'Nothing selected',
         semanticDiagTitle: 'Semantic diagnosis',
+        semanticTestNow: 'Test current model',
+        semanticTestOk: 'Model is working',
+        semanticTestTitle: 'Semantic recall unavailable',
         semanticDiagRun: 'Test all models',
         semanticDiagHint: 'Sends one real request per model (small cost) to see which work',
         semanticDiagNone: 'No provider returned content',
@@ -807,6 +815,8 @@ window.__ModuleLoader__.load({
         statCoverage: 'Coverage',
         alertNone: 'No alerts',
         alertCount: '{n} alert(s)',
+        globalAlertTitle: 'Lingxi memory: semantic recall unavailable',
+        globalAlertHint: 'Fell back to keyword search; memory still works. Pick another model in the Lingxi Settings.',
         statAlerts: 'Alerts',
         semanticFollow: 'Follow default model',
         semanticChoice: 'Semantic model',
@@ -1252,6 +1262,21 @@ window.__ModuleLoader__.load({
 .lx-switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .16s ease; }
 .lx-switch input:checked ~ .lx-switch-track { background: var(--dsw-alias-brand-primary); }
 .lx-switch input:checked ~ .lx-switch-knob { transform: translateX(16px); }
+
+/* 浮层提示：fixed 定位在窗口右上，不随面板内容滚动，也不会被容器裁剪。 */
+.lx-toast-host { position: fixed; top: 96px; right: 24px; z-index: 90; display: flex; flex-direction: column; gap: 8px; max-width: min(400px, calc(100vw - 48px)); pointer-events: none; }
+.lx-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border-radius: 12px; background: var(--dsw-alias-bg-overlay, var(--dsw-alias-bg-layer-2)); border: 1px solid var(--dsw-alias-border-l1); box-shadow: 0 6px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.10); color: var(--dsw-alias-label-primary); font-size: 12.5px; line-height: 1.5; animation: lx-toast-in .18s cubic-bezier(.32,.72,0,1); }
+@keyframes lx-toast-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.lx-toast.is-error { border-color: var(--dsw-alias-state-error-primary); }
+.lx-toast.is-ok { border-color: var(--dsw-alias-state-success-primary); }
+.lx-toast-icon { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.lx-toast.is-error .lx-toast-icon { color: var(--dsw-alias-state-error-primary); }
+.lx-toast.is-ok .lx-toast-icon { color: var(--dsw-alias-state-success-primary); }
+.lx-toast-body { flex: 1 1 auto; min-width: 0; }
+.lx-toast-title { font-weight: 600; }
+.lx-toast-text { color: var(--dsw-alias-label-secondary); margin-top: 2px; word-break: break-word; }
+.lx-toast-close { flex: 0 0 auto; appearance: none; border: none; background: none; color: var(--dsw-alias-label-tertiary); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.lx-toast-close:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .lg-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .lg-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
 .lg-tile { background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); border-radius: 16px; padding: 14px 16px; box-sizing: border-box; transition: background-color .16s ease, border-color .16s ease; }
@@ -1787,6 +1812,85 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'lx-section' }, text, side);
     }
     /**
+     * 浮层提示：固定在窗口右上角，自动消失，可手动关闭。
+     * 与内嵌 .lg-toast 的区别：不随内容滚动、不被容器裁剪。
+     */
+    function ToastHost({ toasts, onDismiss }) {
+      const list = Array.isArray(toasts) ? toasts : [];
+      if (list.length === 0) return null;
+      return h('div', { className: 'lx-toast-host', role: 'status', 'aria-live': 'polite' },
+        list.map((item) => {
+          const isError = item.kind === 'error';
+          const isOk = item.kind === 'ok';
+          const tone = isError ? ' is-error' : (isOk ? ' is-ok' : '');
+          return h('div', { key: item.id, className: 'lx-toast' + tone },
+            h('span', { className: 'lx-toast-icon', 'aria-hidden': true }, isError ? '!' : (isOk ? '✓' : 'i')),
+            h('div', { className: 'lx-toast-body' },
+              item.title !== undefined && item.title !== '' ? h('div', { className: 'lx-toast-title' }, item.title) : null,
+              h('div', { className: 'lx-toast-text' }, item.text)),
+            h('button', { type: 'button', className: 'lx-toast-close', 'aria-label': 'close', onClick: () => onDismiss(item.id) }, '×'));
+        }));
+    }
+
+    /**
+     * 全局告警浮层：挂在 shell.overlay 上，所以**任何界面**（对话、灵犀、御屏）都能看到。
+     * 语义召回失败这类问题不该要求用户先打开灵犀页才发现。
+     *
+     * 数据来源：轻量端点 /lingxi/alerts（不拉整份 overview）。
+     * 去重：同一条告警 10 分钟内只弹一次，避免刷屏。
+     */
+    function GlobalAlerts({ t }) {
+      const [items, setItems] = React.useState([]);
+      const seenRef = React.useRef(new Map());
+      const seqRef = React.useRef(0);
+
+      React.useEffect(() => {
+        let alive = true;
+        const tick = async () => {
+          try {
+            const body = await getJson('lingxi/alerts');
+            if (!alive || body?.ok !== true) return;
+            const alerts = Array.isArray(body.alerts) ? body.alerts : [];
+            const now = Date.now();
+            const fresh = [];
+            for (const alert of alerts) {
+              const key = String(alert.code ?? '') + '|' + String(alert.reason ?? '');
+              const last = seenRef.current.get(key) ?? 0;
+              // 同一条 10 分钟内不重复打扰
+              if (now - last < 10 * 60_000) continue;
+              seenRef.current.set(key, now);
+              seqRef.current += 1;
+              fresh.push({ id: seqRef.current, code: key, reason: String(alert.reason ?? ''), model: String(alert.model ?? '') });
+            }
+            if (fresh.length === 0) return;
+            setItems((current) => [...current, ...fresh].slice(-3));
+            for (const item of fresh) {
+              setTimeout(() => {
+                setItems((current) => current.filter((entry) => entry.id !== item.id));
+              }, 15000);
+            }
+          } catch {
+            // 轮询失败静默：不要因为网络抖动弹窗
+          }
+        };
+        tick();
+        const timer = setInterval(tick, 60_000);
+        return () => { alive = false; clearInterval(timer); };
+      }, []);
+
+      const dismiss = (id) => setItems((current) => current.filter((entry) => entry.id !== id));
+      if (items.length === 0) return null;
+      return h('div', { className: 'lx-toast-host', role: 'status', 'aria-live': 'polite' },
+        items.map((item) => h('div', { key: item.id, className: 'lx-toast is-error' },
+          h('span', { className: 'lx-toast-icon', 'aria-hidden': true }, '!'),
+          h('div', { className: 'lx-toast-body' },
+            h('div', { className: 'lx-toast-title' }, t('globalAlertTitle')),
+            h('div', { className: 'lx-toast-text' }, semanticReason(item.reason, t) + (item.model !== '' ? ' · ' + item.model : '')),
+            h('div', { className: 'lx-toast-text' }, t('globalAlertHint'))),
+          h('button', { type: 'button', className: 'lx-toast-close', 'aria-label': 'close', onClick: () => dismiss(item.id) }, '×'))));
+    }
+
+    /**
      * 设定抽屉：低频配置集中在一处（注入 / 语义 / 存储 / 维护）。
      * 日常页面只留高频操作，配置不再和查看混在一起。
      */
@@ -1889,7 +1993,8 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'lx-field-label' }, t('semanticDiagTitle')),
                 h('div', { className: 'lx-field-hint' }, t('semanticDiagHint')),
                 h('div', { className: 'lx-field-ctl' },
-                  h('button', { type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSemanticDiag }, t('semanticDiagRun'))))
+                  h('button', { key: 'test', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSemanticTest }, t('semanticTestNow')),
+                  h('button', { key: 'diag', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: actions.onSemanticDiag }, t('semanticDiagRun'))))
               : null,
                 h('div', { className: 'lx-field-hint' },
                   stats.calls === 0
@@ -2905,6 +3010,28 @@ window.__ModuleLoader__.load({
       // 权威状态来自后端（meta 持久化后回传），刷新/重启后开关不回弹
       const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
       const [settingsOpen, setSettingsOpen] = React.useState(false);
+      // 浮层提示队列：每条自动消失，也可手动关。
+      const [toasts, setToasts] = React.useState([]);
+      const toastSeq = React.useRef(0);
+      const pushToast = React.useCallback((kind, text, title) => {
+        toastSeq.current += 1;
+        const id = toastSeq.current;
+        setToasts((current) => [...current, { id, kind, text: String(text ?? ''), title: String(title ?? '') }].slice(-4));
+        const ttl = kind === 'error' ? 12000 : 5000;
+        setTimeout(() => { setToasts((current) => current.filter((item) => item.id !== id)); }, ttl);
+      }, []);
+      const dismissToast = React.useCallback((id) => {
+        setToasts((current) => current.filter((item) => item.id !== id));
+      }, []);
+
+      // 所有 setNotice 调用自动弹浮层：一次改动覆盖全部提示点，
+      // 同时保留内嵌 banner（用于"数据陈旧"这类常驻状态）。
+      const setNotice = React.useCallback((next) => {
+        setNoticeState(next);
+        if (next !== null && next !== undefined && next.text !== undefined) {
+          pushToast(next.kind ?? 'ok', next.text, next.title ?? '');
+        }
+      }, [pushToast]);
       React.useEffect(() => {
         if (data?.injection?.semantic !== undefined) setSemanticOn(data.injection.semantic === true);
       }, [data?.injection?.semantic]);
@@ -2965,6 +3092,23 @@ window.__ModuleLoader__.load({
         return t('confirmed');
       });
 
+      // 测试当前模型：失败时弹浮层（用户能直接看到的弹窗形态）。
+      const semanticTest = () => run('semanticTest', async () => {
+        const body = await postJson('lingxi/semantic/probe', {});
+        const selected = body?.selected ?? null;
+        if (selected !== null && selected.ok === true) {
+          setNotice({ kind: 'ok', text: t('semanticTestOk') + ' · ' + String(selected.text ?? '').slice(0, 40) });
+          return t('semanticTestOk');
+        }
+        const reason = semanticReason(selected?.error ?? body?.error ?? 'empty-reply', t);
+        setNotice({
+          kind: 'error',
+          title: t('semanticTestTitle'),
+          text: reason + ' · ' + t('semanticCheckHint'),
+        });
+        return t('semanticTestTitle');
+      });
+
       const semanticDiag = () => run('semanticDiag', async () => {
         const body = await postJson('lingxi/semantic/probe', {});
         const attempts = Array.isArray(body.attempts) ? body.attempts : [];
@@ -2989,7 +3133,7 @@ window.__ModuleLoader__.load({
         setSemanticChoice(picked === null ? '' : String(picked.provider) + '|' + String(picked.model));
         return t('confirmed');
       });
-      const [notice, setNotice] = React.useState(null);
+      const [notice, setNoticeState] = React.useState(null);
       const [detail, setDetail] = React.useState(null);
 
       const openDetail = async (title, params, subtitle) => {
@@ -3485,6 +3629,8 @@ window.__ModuleLoader__.load({
 
           body,
 
+          h(ToastHost, { toasts, onDismiss: dismissToast }),
+
           h(SettingsDrawer, {
             t,
             open: settingsOpen,
@@ -3499,6 +3645,7 @@ window.__ModuleLoader__.load({
               onAudit: auditStore,
               onConsolidate: consolidate,
               onSemanticDiag: semanticDiag,
+              onSemanticTest: semanticTest,
               onRepair: repairStore,
               onSelfcheck: selfcheck,
               onExport: exportAll,
@@ -3530,6 +3677,15 @@ window.__ModuleLoader__.load({
         }, 'dsh-lingxi-panel: panel styles');
 
         const t = ctx.locale.bind(NS);
+
+      // 全局告警浮层：挂在 frame-wide overlay 上，任何界面都能看到。
+      ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+        name: 'shell.overlay',
+        id: 'lingxi-alerts',
+        order: 10,
+        locale: NS,
+        inject: () => ({ t }),
+      }, (props) => h(ErrorBoundary, null, h(GlobalAlerts, { t: props?.t ?? t }))));
         ctx.slots.inject('conversation.view', () => ctx.slots.register({
           name: 'conversation.view',
           id: 'lingxi',

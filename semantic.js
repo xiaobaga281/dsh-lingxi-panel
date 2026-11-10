@@ -18,7 +18,7 @@ const KEYWORDS_SYSTEM = '你是检索助手。为下面这条记忆生成 5-8 �
  * 由快照推导告警（纯函数，便于回归测试）。
  * 语义召回开着却连续拿不到内容 → 必须让人看见，不能只躺在统计里。
  */
-export function semanticAlert(snapshot, { threshold = 2 } = {}) {
+export function semanticAlert(snapshot, { threshold = 1 } = {}) {
   if (snapshot === null || snapshot === undefined) return null;
   if (snapshot.enabled !== true) return null;
   const failures = Number(snapshot.consecutiveFailures ?? 0);
@@ -342,6 +342,33 @@ export function createSemantic({ ctx, settingsRef }) {
     return complete(system, String(user ?? ''), { maxTokens });
   }
 
+  /**
+   * 记录一次外部探测的结果（宿主探针用）。
+   * 探针走的是独立调用路径，不会经过 complete()，所以必须显式记账，
+   * 否则"开启即失败"的情况不会进入告警，全局浮层也就不会弹。
+   */
+  function noteProbeResult(result) {
+    const ok = result !== null && result !== undefined && result.ok === true;
+    stats.calls += 1;
+    stats.lastModel = result?.model !== undefined && result.model !== null
+      ? String(result.model.provider ?? '') + '/' + String(result.model.model ?? '')
+      : stats.lastModel;
+    stats.lastAt = Date.now();
+    if (ok) {
+      stats.ok += 1;
+      stats.consecutiveFailures = 0;
+      stats.lastError = '';
+      stats.lastText = String(result?.text ?? '').slice(0, 80);
+      stats.lastFailAt = 0;
+    } else {
+      stats.failed += 1;
+      stats.consecutiveFailures += 1;
+      stats.lastFailAt = Date.now();
+      stats.lastError = String(result?.error ?? 'empty-reply');
+    }
+    return stats;
+  }
+
   /** 只读快照：面板与体检用 */
   function snapshot() {
     return {
@@ -369,5 +396,5 @@ export function createSemantic({ ctx, settingsRef }) {
     };
   }
 
-  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, currentModel, snapshot };
+  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, noteProbeResult, currentModel, snapshot };
 }

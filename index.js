@@ -141,6 +141,7 @@ export function apply(ctx, config) {
   setTimeout(async () => {
     if (settings.semantic !== true) return;
     const check = await probeSemanticOnce();
+    semantic.noteProbeResult(check);
     lastSemanticProbe = {
       at: check.at,
       model: check.model,
@@ -1345,7 +1346,9 @@ export function apply(ctx, config) {
                 }).catch(() => {});
               }
               routeDiagnostic.requestsByPath[actualPath] = (routeDiagnostic.requestsByPath[actualPath] ?? 0) + 1;
-              const rejection = requestRejection(hctx, request);
+              // 全局浮层（shell.overlay）是 root 作用域，拿不到 sessionId；
+        // /lingxi/alerts 只返回"语义是否失败"这类非敏感状态，允许免会话鉴权。
+        const rejection = actualPath === '/lingxi/alerts' ? undefined : requestRejection(hctx, request);
               if (rejection !== undefined) {
                 sendJson(response, rejection, { ok: false, error: 'forbidden' });
                 return;
@@ -2021,6 +2024,37 @@ export function apply(ctx, config) {
         }
       });
 
+      // 轻量告警端点：给全局浮层轮询用（不拉整份 overview）。
+      // 语义召回失败这类问题必须在对话界面就能看见，不能要求用户先打开灵犀页。
+      route('/lingxi/alerts', async (request, response) => {
+        if (!allowGetPost(request, response)) return;
+        try {
+          const list = [];
+          const sem = semantic.snapshot();
+          const semAlert = semanticAlert(sem);
+          if (semAlert !== null) {
+            list.push({
+              code: 'semantic-empty',
+              count: semAlert.count,
+              reason: semAlert.detail,
+              model: String(sem.lastModel ?? ''),
+            });
+          }
+          sendJson(response, 200, {
+            ok: true,
+            at: Date.now(),
+            alerts: list,
+            semantic: {
+              enabled: sem.enabled === true,
+              consecutiveFailures: Number(sem.consecutiveFailures ?? 0),
+              lastError: String(sem.lastError ?? ''),
+            },
+          });
+        } catch (error) {
+          sendJson(response, 200, { ok: false, error: errorMessage(error) });
+        }
+      });
+
       route('/lingxi/semantic/options', async (request, response) => {
         if (!allowGetPost(request, response)) return;
         try {
@@ -2122,6 +2156,8 @@ export function apply(ctx, config) {
           // 开启即验证：不要等几分钟后靠统计才发现它没工作。
           if (settings.semantic === true) {
             semanticCheck = await probeSemanticOnce();
+            // 探针走独立路径，必须显式记账，否则"开启即失败"进不了告警
+            semantic.noteProbeResult(semanticCheck);
           }
         }
         if (injectionPatch.semanticModel !== undefined) {

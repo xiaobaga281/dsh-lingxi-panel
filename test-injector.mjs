@@ -659,18 +659,18 @@ await check('语义连续失败会被计数并在成功后清零（告警的依�
   assert.equal(s.snapshot().consecutiveFailures, 2, 'accumulates to 2: ' + s.snapshot().consecutiveFailures);
 });
 
-await check('语义告警条件：开启且连续失败≥2 才告警', async () => {
+await check('语义告警条件：开启且失败≥1 即告警', async () => {
   const { semanticAlert } = await import('./semantic.js');
   assert.equal(semanticAlert({ enabled: false, consecutiveFailures: 9 }), null, 'disabled never alerts');
-  assert.equal(semanticAlert({ enabled: true, consecutiveFailures: 1 }), null, 'single failure below threshold');
+  assert.ok(semanticAlert({ enabled: true, consecutiveFailures: 1 }) !== null, 'one failure already alerts (user wants immediate feedback)');
   assert.equal(semanticAlert(null), null, 'null snapshot safe');
-  const hit = semanticAlert({ enabled: true, consecutiveFailures: 2, lastError: 'empty-reply' });
+  const hit = semanticAlert({ enabled: true, consecutiveFailures: 1, lastError: 'empty-reply' });
   assert.ok(hit !== null, 'two failures alert');
   assert.equal(hit.kind, 'semantic-empty', 'kind');
-  assert.equal(hit.count, 2, 'count');
+  assert.equal(hit.count, 1, 'count');
   assert.equal(hit.detail, 'empty-reply', 'detail carries the reason');
   // 阈值可调：诊断场景可以更灵敏
-  assert.ok(semanticAlert({ enabled: true, consecutiveFailures: 1 }, { threshold: 1 }) !== null, 'custom threshold');
+  assert.equal(semanticAlert({ enabled: true, consecutiveFailures: 1 }, { threshold: 3 }), null, 'custom threshold still respected');
 });
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);
