@@ -91,11 +91,6 @@ export function apply(ctx, config) {
     settings.reviewModel = bootMeta?.reviewModel ?? null;
     if (bootMeta?.autoReview !== undefined) settings.autoReview = bootMeta.autoReview !== false;
     if (Number.isFinite(Number(bootMeta?.autoReviewDays))) settings.autoReviewDays = Math.max(1, Math.min(90, Number(bootMeta.autoReviewDays)));
-    // 恢复上次复盘结果：不必重启后就重跑（复盘是花 token 的操作）
-    if (bootMeta?.lastReview !== undefined && bootMeta.lastReview !== null) {
-      lastReview = bootMeta.lastReview;
-      lastReviewModel = String(bootMeta.lastReview.model ?? '');
-    }
     if (bootMeta?.adoptionOverrides !== undefined) applyAdoptionOverrides(bootMeta.adoptionOverrides ?? {});
   } catch {
     // meta 暂不存在（首次运行）就按默认
@@ -146,33 +141,10 @@ export function apply(ctx, config) {
     return out;
   }
 
-  // 语义召回的运行时自检：开启时启动后探一次，把"能拿到什么"记下来。
-  // 之前它长期 enabled=true 却 ok=0，因为没有可观测通道。
-  // 启动自检：只验「当前选中的模型」一次，不扫全部 provider。
-  // 全量扫描每重启会烧掉多次真实请求，改为面板里的手动诊断。
-  setTimeout(async () => {
-    if (settings.semantic !== true) return;
-    const check = await probeSemanticOnce();
-    semantic.noteProbeResult(check);
-    lastSemanticProbe = {
-      at: check.at,
-      model: check.model,
-      text: check.text,
-      error: check.error,
-      chunkKeys: check.ok === true ? ['text'] : [],
-    };
-  }, 6000);
-
-  const reviewer = createReviewer({ ctx, settingsRef: () => settings, semantic });
-  const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
-  const evolver = createEvolver();
-  /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
-  const sceneEvolvers = {
-    file: createEvolver(),
-    command: createEvolver(),
-    web: createEvolver(),
-    other: createEvolver(),
-  };
+  /* ---------------- 模块状态 ----------------
+     统一在文件前部声明：let/const 存在暂时性死区，
+     在声明之前赋值会抛 ReferenceError；若那段代码在 try/catch 里，
+     异常会被静默吞掉，表现为"没有报错但功能也没生效"。 */
   let lastSceneStats = null;
 
   let persistence = null;
@@ -204,6 +176,44 @@ export function apply(ctx, config) {
   let lastSemanticProbe = null;
   let lastReview = null;
   let lastReviewModel = null;
+
+  // 语义召回的运行时自检：开启时启动后探一次，把"能拿到什么"记下来。
+  // 之前它长期 enabled=true 却 ok=0，因为没有可观测通道。
+  // 启动自检：只验「当前选中的模型」一次，不扫全部 provider。
+  // 全量扫描每重启会烧掉多次真实请求，改为面板里的手动诊断。
+  setTimeout(async () => {
+    if (settings.semantic !== true) return;
+    const check = await probeSemanticOnce();
+    semantic.noteProbeResult(check);
+    lastSemanticProbe = {
+      at: check.at,
+      model: check.model,
+      text: check.text,
+      error: check.error,
+      chunkKeys: check.ok === true ? ['text'] : [],
+    };
+  }, 6000);
+
+  const reviewer = createReviewer({ ctx, settingsRef: () => settings, semantic });
+  const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
+  const evolver = createEvolver();
+  /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
+  const sceneEvolvers = {
+    file: createEvolver(),
+    command: createEvolver(),
+    web: createEvolver(),
+    other: createEvolver(),
+  };
+  // 恢复上次复盘结果：复盘要花 token，重启后不该重跑。
+  // 必须放在 let 声明之后——在声明前赋值会触发暂时性死区错误，
+  // 若那段在 try/catch 内会被静默吞掉，看起来"没有报错但也没生效"。
+  readMeta()
+    .then((bootMeta) => {
+      if (bootMeta?.lastReview === undefined || bootMeta.lastReview === null) return;
+      lastReview = bootMeta.lastReview;
+      lastReviewModel = String(bootMeta.lastReview.model ?? '');
+    })
+    .catch(() => {});
   // 复盘运行状态（后台任务与轮询共享）
   let reviewRun = null;
 
