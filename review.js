@@ -40,7 +40,7 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
    * @param {Array<{id,text,kind}>} items 最多 20 条
    * @returns {Promise<{ok:boolean, verdicts:Array, error:string}>}
    */
-  async function review(items, { batchSize = 12 } = {}) {
+  async function review(items, { batchSize = 12, onProgress } = {}) {
     const list = (Array.isArray(items) ? items : [])
       .filter((item) => item !== null && typeof item === 'object' && String(item.text ?? '') !== '')
       .slice(0, 60);
@@ -58,6 +58,13 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
       const prompt = '请审查下面这些记忆：\n\n' + JSON.stringify(payload, null, 1);
       // 复盘是独立任务：用自己的模型（reviewModel），
       // 也不受"语义召回开关"约束——关掉语义召回仍应能复盘。
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(Math.min(offset, list.length), list.length);
+        } catch {
+          // 进度回调不该影响复盘本身
+        }
+      }
       const raw = await semantic.completeRaw(REVIEW_SYSTEM, prompt, {
         maxTokens: 1200,
         kind: 'review',
@@ -87,6 +94,13 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
           kind: decision === 'reclass' && allowed.includes(kind) ? kind : '',
           reason: String(verdict?.reason ?? '').slice(0, 60),
         });
+      }
+    }
+    if (typeof onProgress === 'function') {
+      try {
+        onProgress(list.length, list.length);
+      } catch {
+        // 同上
       }
     }
     return { ok: errors.length === 0, verdicts: out, error: errors.join(';') };

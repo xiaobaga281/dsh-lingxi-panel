@@ -134,6 +134,36 @@ await checkAsync('复盘可指定自己的模型（reviewModel 优先于默认�
   await sem.completeRaw('s', 'u', { kind: 'review', requireEnabled: false });
   assert.equal(used, 'picked-provider/review-m', 'review must use its own model, got: ' + used);
 });
+
+await checkAsync('复盘进度回调：按批回报，结束时到总数', async () => {
+  const { createReviewer } = await import('./review.js');
+  const seen = [];
+  const r = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    semantic: { completeRaw: async () => '[{"id":"x","verdict":"keep","reason":"r"}]' },
+  });
+  const items = Array.from({ length: 25 }, (_, i) => ({ id: 'm' + i, kind: 'lesson', text: 't' + i }));
+  await r.review(items, { batchSize: 12, onProgress: (done, total) => seen.push([done, total]) });
+  assert.ok(seen.length >= 2, 'progress reported per batch: ' + JSON.stringify(seen));
+  // 每次回报的 total 必须是全集大小，而不是批次大小
+  assert.ok(seen.every(([, total]) => total === 25), 'total is the whole set: ' + JSON.stringify(seen));
+  assert.equal(seen[seen.length - 1][0], 25, 'final progress reaches total');
+});
+
+await checkAsync('进度回调抛错不影响复盘结果', async () => {
+  const { createReviewer } = await import('./review.js');
+  const r = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    semantic: { completeRaw: async () => '[{"id":"a","verdict":"drop","reason":"r"}]' },
+  });
+  const out = await r.review([{ id: 'a', kind: 'skill', text: 'x' }], {
+    onProgress: () => { throw new Error('boom'); },
+  });
+  assert.equal(out.verdicts.length, 1, 'verdicts still produced');
+  assert.equal(out.verdicts[0].verdict, 'drop');
+});
 console.log(checks.join('\n'));
 const failed = checks.filter((line) => line.includes('FAIL')).length;
 console.log(failed === 0 ? '通过 ' + checks.length + ' 项' : '失败 ' + failed + ' 项');

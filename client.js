@@ -294,6 +294,9 @@ window.__ModuleLoader__.load({
         reviewNoModel: '没有可用模型：请在下方选择一个，或在模型配置里设置默认模型',
         reviewUsedModel: '本次使用：{model}',
         reviewRunning: '复盘进行中…',
+        reviewProgress: '已审查 {done} / {total} 条',
+        reviewStarting: '正在准备…',
+        reviewElapsed: '用时 {s} 秒',
         reviewNone: '模型认为当前记忆都合理',
         reviewScanned: '已审查 {n} 条',
         reviewApply: '应用选中项',
@@ -780,6 +783,9 @@ window.__ModuleLoader__.load({
         reviewNoModel: 'No model available: pick one below, or set a default in model settings',
         reviewUsedModel: 'used: {model}',
         reviewRunning: 'Reviewing…',
+        reviewProgress: 'reviewed {done} / {total}',
+        reviewStarting: 'preparing…',
+        reviewElapsed: '{s}s elapsed',
         reviewNone: 'The model found nothing to change',
         reviewScanned: '{n} reviewed',
         reviewApply: 'Apply selected',
@@ -1270,6 +1276,10 @@ window.__ModuleLoader__.load({
 .lx-switch-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.28); transition: transform .16s ease; }
 .lx-switch input:checked ~ .lx-switch-track { background: var(--dsw-alias-brand-primary); }
 .lx-switch input:checked ~ .lx-switch-knob { transform: translateX(16px); }
+
+/* 复盘进度条 */
+.lx-progress-track { height: 6px; border-radius: 999px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; margin-top: 6px; }
+.lx-progress-fill { height: 100%; border-radius: 999px; background: var(--dsw-alias-brand-primary); transition: width .3s ease; }
 
 /* 浮层提示：fixed 定位在窗口右上，不随面板内容滚动，也不会被容器裁剪。 */
 .lx-toast-host { position: fixed; top: 96px; right: 24px; z-index: 90; display: flex; flex-direction: column; gap: 8px; max-width: min(400px, calc(100vw - 48px)); pointer-events: none; }
@@ -2580,7 +2590,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed }) {
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed, reviewProgress }) {
       const health = memory?.health ?? null;
       const hygiene = memory?.hygiene ?? null;
       const pending = memory?.pending ?? [];
@@ -2728,6 +2738,18 @@ window.__ModuleLoader__.load({
                 ? h('button', { key: 'apply', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onApplyReview }, t('reviewApply'))
                 : null,
             ])),
+
+          // 进度：把"进行中"变成可量化的等待（第几条 / 共几条 / 已用几秒）
+          reviewProgress !== null
+            ? h('div', { className: 'lx-field', key: 'reviewProgress' },
+              h('div', { className: 'lx-field-hint' },
+                reviewProgress.total > 0
+                  ? t('reviewProgress').replace('{done}', int(reviewProgress.done)).replace('{total}', int(reviewProgress.total))
+                    + ' · ' + t('reviewElapsed').replace('{s}', int(Math.round((reviewProgress.elapsedMs ?? 0) / 1000)))
+                  : t('reviewStarting')),
+              h('div', { className: 'lx-progress-track' },
+                h('div', { className: 'lx-progress-fill', style: { width: (reviewProgress.total > 0 ? Math.round((reviewProgress.done / reviewProgress.total) * 100) : 10) + '%' } })))
+            : null,
 
           // 复盘模型：与语义召回并列的独立选择（两个任务可以各用各的模型）
           h('div', { className: 'lx-field', key: 'reviewModel' },
@@ -3127,16 +3149,36 @@ window.__ModuleLoader__.load({
 
       const [reviewState, setReviewState] = React.useState(null);
       const [reviewPicked, setReviewPicked] = React.useState({});
+      const [reviewProgress, setReviewProgress] = React.useState(null);
 
       const runReview = () => run('review', async () => {
-        setNotice({ kind: 'ok', text: t('reviewRunning') });
+        // 复盘在后台跑：先拿回执，再轮询进度，用户能看到审查到第几条。
+        setReviewProgress({ done: 0, total: 0, elapsedMs: 0 });
         const body = await postJson('lingxi/memory/review', {});
-        if (body.ok !== true && (body.error === 'no-model' || body.error === 'semantic-disabled')) {
-          setNotice({ kind: 'error', text: t('reviewNoModel') });
-          return t('reviewNoModel');
+        if (body.ok !== true) {
+          setReviewProgress(null);
+          if (body.error === 'no-model' || body.error === 'semantic-disabled') {
+            setNotice({ kind: 'error', text: t('reviewNoModel') });
+            return t('reviewNoModel');
+          }
+          setNotice({ kind: 'error', text: String(body.error ?? '') });
+          return t('reviewNone');
         }
-        const suggestions = Array.isArray(body.suggestions) ? body.suggestions : [];
-        setReviewState({ suggestions, scanned: Number(body.scanned ?? 0), error: String(body.error ?? '') });
+        let state = body;
+        // 最多等约 5 分钟，期间持续刷新进度
+        for (let i = 0; i < 250; i += 1) {
+          if (state.running !== true) break;
+          setReviewProgress({
+            done: Number(state.done ?? 0),
+            total: Number(state.total ?? 0),
+            elapsedMs: Number(state.elapsedMs ?? 0),
+          });
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          state = await getJson('lingxi/memory/review');
+        }
+        setReviewProgress(null);
+        const suggestions = Array.isArray(state.suggestions) ? state.suggestions : [];
+        setReviewState({ suggestions, scanned: Number(state.scanned ?? 0), error: String(state.error ?? '') });
         // 默认勾选所有需要变更的项（保留项无需处理）
         const picked = {};
         for (const item of suggestions) {
@@ -3148,7 +3190,7 @@ window.__ModuleLoader__.load({
           setNotice({ kind: 'ok', text: t('reviewNone') });
           return t('reviewNone');
         }
-        return t('reviewScanned').replace('{n}', int(body.scanned ?? 0));
+        return t('reviewScanned').replace('{n}', int(state.scanned ?? 0));
       });
 
       const applyReview = () => run('reviewApply', async () => {
@@ -3589,7 +3631,7 @@ window.__ModuleLoader__.load({
       } else if (data !== null) {
         if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked,
 onReviewModel: reviewModelConfig, reviewModelChoice,
-modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed });
+modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

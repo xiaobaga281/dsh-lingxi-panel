@@ -194,6 +194,27 @@ export function apply(ctx, config) {
   let lastSemanticProbe = null;
   let lastReview = null;
   let lastReviewModel = null;
+  // 复盘运行状态（后台任务与轮询共享）
+  let reviewRun = null;
+
+  /** 投影给客户端：进度、结果、耗时。 */
+  const reviewStateForClient = () => {
+    if (reviewRun === null) {
+      return { running: false, done: 0, total: 0, scanned: 0, suggestions: [], error: '', model: '', elapsedMs: 0 };
+    }
+    const until = reviewRun.finishedAt > 0 ? reviewRun.finishedAt : Date.now();
+    return {
+      running: reviewRun.running === true,
+      ok: reviewRun.ok === true,
+      done: reviewRun.done,
+      total: reviewRun.total,
+      scanned: reviewRun.scanned,
+      suggestions: reviewRun.suggestions,
+      error: reviewRun.error,
+      model: reviewRun.model,
+      elapsedMs: until - reviewRun.startedAt,
+    };
+  };
   let alerts = [];
   let lastAudit = null;
   let autoActivated = 0;
@@ -1970,9 +1991,18 @@ export function apply(ctx, config) {
 
       // 记忆复盘：让模型审查每条记忆的分类与价值。
       // 只返回建议，不直接改库——应用由 /lingxi/memory/review/apply 完成。
+      // 复盘：POST 启动（后台跑，立即返回），GET 轮询进度。
+      // 为什么要后台：一次复盘要跑多批模型调用，同步请求期间客户端拿不到任何进度，
+      // 只能干等一个"进行中"，用户无从判断是在工作还是卡住了。
       route('/lingxi/memory/review', async (request, response) => {
         if (!allowGetPost(request, response)) return;
+        const method = request.method ?? 'GET';
         try {
+          // 轮询：返回当前状态（含进度与已完成的结果）
+          if (method === 'GET' || (reviewRun !== null && reviewRun.running === true)) {
+            sendJson(response, 200, { ok: true, ...reviewStateForClient() });
+            return;
+          }
           await ensureMemory();
           // 复盘不依赖"语义召回开关"：那是两个任务。
           // 它只需要一个可用的模型（reviewModel，未选则跟随默认）。
@@ -1985,20 +2015,59 @@ export function apply(ctx, config) {
           const items = records
             .filter((record) => String(record.status ?? '') !== 'retired')
             .map((record) => ({ id: record.id, kind: record.kind, text: record.text }));
-          const outcome = await reviewer.review(items);
-          // 把建议与实际记录对齐，附带当前 kind，便于面板展示"从→到"
-          const byId = new Map(records.map((record) => [record.id, record]));
-          const suggestions = outcome.verdicts.map((verdict) => {
-            const record = byId.get(verdict.id);
-            return {
-              ...verdict,
-              currentKind: String(record?.kind ?? ''),
-              text: String(record?.text ?? '').slice(0, 120),
-            };
-          });
-          lastReview = { at: Date.now(), suggestions, error: outcome.error };
-          lastReviewModel = reviewModel;
-          sendJson(response, 200, { ok: outcome.ok, suggestions, error: outcome.error, scanned: items.length, model: reviewModel });
+          reviewRun = {
+            running: true,
+            ok: false,
+            done: 0,
+            total: items.length,
+            scanned: items.length,
+            startedAt: Date.now(),
+            finishedAt: 0,
+            suggestions: [],
+            error: '',
+            model: reviewModel.provider + '/' + reviewModel.model,
+          };
+          // 后台执行：先回执，再干活。
+          const runInBackground = async () => {
+            try {
+              const outcome = await reviewer.review(items, {
+                onProgress: (done, total) => {
+                  if (reviewRun !== null) {
+                    reviewRun.done = Number(done ?? 0);
+                    reviewRun.total = Number(total ?? 0);
+                  }
+                },
+              });
+              const byId = new Map(records.map((record) => [record.id, record]));
+              const suggestions = outcome.verdicts.map((verdict) => {
+                const record = byId.get(verdict.id);
+                return {
+                  ...verdict,
+                  currentKind: String(record?.kind ?? ''),
+                  text: String(record?.text ?? '').slice(0, 120),
+                };
+              });
+              lastReview = { at: Date.now(), suggestions, error: outcome.error };
+              lastReviewModel = reviewRun === null ? '' : reviewRun.model;
+              if (reviewRun !== null) {
+                reviewRun.running = false;
+                reviewRun.done = reviewRun.total;
+                reviewRun.finishedAt = Date.now();
+                reviewRun.suggestions = suggestions;
+                reviewRun.error = outcome.error;
+                reviewRun.ok = outcome.ok;
+              }
+            } catch (error) {
+              if (reviewRun !== null) {
+                reviewRun.running = false;
+                reviewRun.finishedAt = Date.now();
+                reviewRun.error = errorMessage(error);
+                reviewRun.ok = false;
+              }
+            }
+          };
+          runInBackground();
+          sendJson(response, 200, { ok: true, ...reviewStateForClient() });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
