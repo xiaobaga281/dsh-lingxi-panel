@@ -1271,6 +1271,9 @@ export function apply(ctx, config) {
     }
   }
 
+  /** 最近一次因果对照结果：给诊断状态文件用，避免每次写状态都重算。 */
+  let causalCache = null;
+
   /** 原始质量日志明细：因果对照要逐轮的分组与计数，不能只看汇总。 */
   async function readQualityRaw(limit = 5000) {
     try {
@@ -1288,6 +1291,12 @@ export function apply(ctx, config) {
     } catch {
       return [];
     }
+  }
+
+  async function computeCausal() {
+    const result = analyzeCausalExperiment(await readQualityRaw().catch(() => []));
+    causalCache = result;
+    return result;
   }
 
   async function readQuality() {
@@ -1324,17 +1333,15 @@ export function apply(ctx, config) {
             ...stats,
             autoSeeded,
             autoActivated,
-            // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
+            // 注入与模型设置：面板据此回填开关与下拉（复盘与因果对照同在这一组）。
+            // 只留一份——同对象内的重复键会静默覆盖，是 bug 的温床。
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
-          reviewModel: settings.reviewModel ?? null,
-        autoReview: settings.autoReview === true,
-        causalExperiment: settings.causalExperiment === true,
-        causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
-        autoReviewDays: Number(settings.autoReviewDays) || 7,
             reviewModel: settings.reviewModel ?? null,
-        autoReview: settings.autoReview === true,
-        autoReviewDays: Number(settings.autoReviewDays) || 7,
+            autoReview: settings.autoReview === true,
+            autoReviewDays: Number(settings.autoReviewDays) || 7,
+            causalExperiment: settings.causalExperiment === true,
+            causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
           },
         evolution,
         scenes: injector.sceneSnapshot(),
@@ -1401,6 +1408,9 @@ export function apply(ctx, config) {
         reviewModel: settings.reviewModel ?? null,
         autoReview: settings.autoReview === true,
         autoReviewDays: Number(settings.autoReviewDays) || 7,
+        causalExperiment: settings.causalExperiment === true,
+        causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
+        causal: causalCache ?? null,
         reviewModelUsed: lastReviewModel,
         reviewStats: semantic.reviewSnapshot(),
         audit: lastAudit,
@@ -1418,7 +1428,7 @@ export function apply(ctx, config) {
         quality: await readQuality().catch(() => null),
         // 因果对照：只有开着实验、且对照组有样本的键才会下结论，
         // 其余一律 insufficient / inconclusive，不把噪声包装成发现。
-        causal: analyzeCausalExperiment(await readQualityRaw().catch(() => [])),
+        causal: await computeCausal(),
         attributionTrend: (await readMeta()).attributionTrend ?? [],
         metrics: metrics.summary(),
         lastError,
@@ -1665,15 +1675,15 @@ export function apply(ctx, config) {
             ...stats,
             autoSeeded,
             autoActivated,
-            // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
+            // 注入与模型设置：面板据此回填开关与下拉（复盘与因果对照同在这一组）。
+            // 只留一份——同对象内的重复键会静默覆盖，是 bug 的温床。
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
-          reviewModel: settings.reviewModel ?? null,
-        autoReview: settings.autoReview === true,
-        autoReviewDays: Number(settings.autoReviewDays) || 7,
             reviewModel: settings.reviewModel ?? null,
-        autoReview: settings.autoReview === true,
-        autoReviewDays: Number(settings.autoReviewDays) || 7,
+            autoReview: settings.autoReview === true,
+            autoReviewDays: Number(settings.autoReviewDays) || 7,
+            causalExperiment: settings.causalExperiment === true,
+            causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
           },
           search: { ...searchStats },
           storage: { dir: memoryDir, pointer: readStoragePointer() },
@@ -1683,9 +1693,6 @@ export function apply(ctx, config) {
           semanticStats: semantic.snapshot(),
           semanticProbe: lastSemanticProbe,
           review: lastReview,
-          reviewModel: settings.reviewModel ?? null,
-        autoReview: settings.autoReview === true,
-        autoReviewDays: Number(settings.autoReviewDays) || 7,
           reviewModelUsed: lastReviewModel,
           reviewStats: semantic.reviewSnapshot(),
           audit: lastAudit,

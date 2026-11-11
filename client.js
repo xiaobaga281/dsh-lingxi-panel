@@ -3264,7 +3264,7 @@ window.__ModuleLoader__.load({
       } else if (data !== null) {
         if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked,
 onReviewModel: reviewModelConfig, reviewModelChoice,
-modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress, autoReview: data.autoReview, autoReviewDays: data.autoReviewDays, autoReviewLastAt: Number(data?.review?.at ?? 0), onAutoReview: autoReviewConfig });
+modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress, autoReview: data?.injection?.autoReview, autoReviewDays: data?.injection?.autoReviewDays, autoReviewLastAt: Number(data?.review?.at ?? 0), onAutoReview: autoReviewConfig });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

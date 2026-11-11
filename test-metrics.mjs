@@ -474,4 +474,33 @@ await check('因果对照：空输入不崩，且只抽守卫教训', async () =
   assert.equal(g.neverHoldOut({ kind: 'preference' }), true);
   assert.equal(g.neverHoldOut({ kind: 'lesson' }), false);
 });
+
+await check('同一对象里不出现重复的设置键（重复键会静默覆盖，曾多次发生）', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const lines = src.split('\n');
+  const group = ['semantic', 'semanticModel', 'reviewModel', 'autoReview', 'autoReviewDays', 'causalExperiment', 'causalHoldoutRate'];
+  const dups = [];
+  /* 同一对象 = 同缩进 + 邻近（中间没有更浅缩进的 } 收尾）。这里用保守判据：
+     同缩进且行距 < 20 视为同一对象内的重复。 */
+  const seen = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = /^(\s*)(\w+):/.exec(lines[i]);
+    if (m === null || !group.includes(m[2])) continue;
+    const indent = m[1].length;
+    const hit = seen.filter((s) => s.key === m[2] && s.indent === indent && i - s.line < 20);
+    if (hit.length > 0) dups.push(m[2] + ' @' + (i + 1));
+    seen.push({ key: m[2], indent, line: i });
+  }
+  assert.deepEqual(dups, [], 'duplicate setting keys in one object: ' + dups.join(', '));
+});
+
+await check('因果实验开关与结论都能被外部读到（便于核对）', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  assert.ok(src.includes('causalExperiment: settings.causalExperiment === true'), 'status exposes experiment switch');
+  assert.ok(src.includes('injectionPatch.causalExperiment !== undefined'), 'config route accepts the switch');
+  assert.ok(src.includes('injectionPatch.causalHoldoutRate !== undefined'), 'config route accepts the rate');
+  assert.ok(src.includes('analyzeCausalExperiment'), 'analysis is wired');
+});
 report();
