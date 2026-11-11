@@ -34,6 +34,9 @@ window.__ModuleLoader__.load({
         noInsights: '还没有洞察。',
 
         searchPlaceholder: '例如：pwsh 路径报错、面板样式、安装',
+        searchAbstain: '没有足够相关的记忆（按设计不注入，不硬凑）',
+        searchIsolation: '隔离拦截 {n} 条（跨会话不可见）',
+        searchBlockTitle: '本轮会注入的内容预览',
         noResults: '没有命中。记忆库会随着纠正与复盘继续长。',
         searchAction: '搜索',
         browseTitle: '浏览记忆',
@@ -41,6 +44,7 @@ window.__ModuleLoader__.load({
         browseStatusAll: '全部状态',
         pendingQueue: '待确认记忆',
         noPending: '没有待确认的记忆。',
+        pendingShowAll: '显示全部 {n} 条',
         accept: '确认',
         retire: '忽略',
         consolidate: '巩固一次',
@@ -162,6 +166,21 @@ window.__ModuleLoader__.load({
         autoReviewHint: '每 {d} 天自动审查一次（后台跑，只花少量额度）。关闭后只能手动点。',
         autoReviewLast: '上次复盘：{when}',
         autoReviewNever: '尚未自动复盘过',
+        causalLabel: '因果对照',
+        causalHint: '随机保留一部分守卫教训不注入，用来回答「这条教训是保险还是内鬼」。只抽带错误码的教训；约束、偏好、用户准则永不参与。',
+        causalWarn: '开启后约 {p}% 的轮次里守卫教训不会出现——这是换因果结论必须付的代价，可能出现本可避免的失败。',
+        causalSamples: '已积累 {turns} 轮 · {keys} 个场景',
+        causalNone: '还没有对照数据。开启后需要把两组样本都积累起来，才会出现第一条结论。',
+        causalHelps: '有效',
+        causalHurts: '有害',
+        causalInconclusive: '暂无定论',
+        causalInsufficient: '样本不足',
+        causalColScene: '场景',
+        causalColInjected: '注入时失败率',
+        causalColHoldout: '保留时失败率',
+        causalColDelta: '差值',
+        causalColVerdict: '判定',
+        causalLegend: '差值大于 0 表示「不注入时更容易失败」，即这条教训确实在挡错。区间跨 0 时不给结论。',
         reviewModelHint: '复盘用哪个模型审查记忆。与语义召回相互独立，可以各选各的。',
         reviewNoModel: '没有可用模型：请在下方选择一个，或在模型配置里设置默认模型',
         reviewUsedModel: '本次使用：{model}',
@@ -182,6 +201,9 @@ window.__ModuleLoader__.load({
         semanticTestOk: '模型可用',
         semanticTestTitle: '语义召回不可用',
         semanticDiagRun: '诊断全部模型',
+        semanticDiagProgress: '正在探测 {done} / {total} 个 provider…',
+        semanticDiagElapsed: '已用 {s} 秒',
+        semanticDiagTimeout: '超时',
         semanticDiagHint: '逐个模型发一次真实请求（会消耗少量额度），用来确认哪些可用',
         semanticDiagNone: '没有任何 provider 返回内容',
         colContent: '内容',
@@ -345,6 +367,9 @@ window.__ModuleLoader__.load({
         noInsights: 'No insights yet.',
 
         searchPlaceholder: 'e.g. pwsh path error, panel style, install',
+        searchAbstain: 'Nothing relevant enough (by design, nothing is injected)',
+        searchIsolation: '{n} blocked by session isolation',
+        searchBlockTitle: 'Preview of what would be injected this turn',
         noResults: 'No match. The library grows with corrections and retrospectives.',
         searchAction: 'Search',
         browseTitle: 'Browse memories',
@@ -352,6 +377,7 @@ window.__ModuleLoader__.load({
         browseStatusAll: 'All statuses',
         pendingQueue: 'Pending memories',
         noPending: 'No pending memories.',
+        pendingShowAll: 'Show all {n}',
         accept: 'Accept',
         retire: 'Ignore',
         consolidate: 'Consolidate',
@@ -467,6 +493,21 @@ window.__ModuleLoader__.load({
         autoReviewHint: 'Audits every {d} days in the background (small cost). Off = manual only.',
         autoReviewLast: 'Last review: {when}',
         autoReviewNever: 'Never reviewed automatically yet',
+        causalLabel: 'Causal comparison',
+        causalHint: 'Randomly withholds some guard lessons to answer whether a lesson is protection or a liability. Only lessons tied to an error code are sampled; constraints, preferences and user rules never are.',
+        causalWarn: 'When on, guard lessons are absent in about {p}% of turns — the price of a causal answer, and some avoidable failures may occur.',
+        causalSamples: '{turns} turns · {keys} scenes collected',
+        causalNone: 'No comparison data yet. Once on, both arms need samples before any verdict appears.',
+        causalHelps: 'helps',
+        causalHurts: 'hurts',
+        causalInconclusive: 'inconclusive',
+        causalInsufficient: 'insufficient',
+        causalColScene: 'Scene',
+        causalColInjected: 'Fail when injected',
+        causalColHoldout: 'Fail when withheld',
+        causalColDelta: 'Delta',
+        causalColVerdict: 'Verdict',
+        causalLegend: 'A delta above zero means failures are more likely without the lesson — it is doing work. An interval crossing zero gets no verdict.',
         reviewModelHint: 'Which model audits the memories. Independent from semantic recall.',
         reviewNoModel: 'No model available: pick one below, or set a default in model settings',
         reviewUsedModel: 'used: {model}',
@@ -487,6 +528,9 @@ window.__ModuleLoader__.load({
         semanticTestOk: 'Model is working',
         semanticTestTitle: 'Semantic recall unavailable',
         semanticDiagRun: 'Test all models',
+        semanticDiagProgress: 'Probing {done} / {total} providers…',
+        semanticDiagElapsed: '{s}s elapsed',
+        semanticDiagTimeout: 'timed out',
         semanticDiagHint: 'Sends one real request per model (small cost) to see which work',
         semanticDiagNone: 'No provider returned content',
         colContent: 'Content',
@@ -890,6 +934,9 @@ window.__ModuleLoader__.load({
 .lx-switch input:checked ~ .lx-switch-knob { transform: translateX(16px); }
 
 /* 复盘进度条 */
+/* 注入块预览：等宽、可滚动、不撑破布局 */
+.lx-pre { margin: 6px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+
 .lx-progress-track { height: 6px; border-radius: 999px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; margin-top: 6px; }
 .lx-progress-fill { height: 100%; border-radius: 999px; background: var(--dsw-alias-brand-primary); transition: width .3s ease; }
 
@@ -1018,9 +1065,15 @@ window.__ModuleLoader__.load({
     async function requestJson(routePath, init) {
       const bases = routeBase === '' ? ['', 'api/'] : [routeBase];
       let lastError = null;
+      // 没有超时的 fetch 在服务端挂住时会一直转圈——这正是"点了没反应"的来源。
+      // 60 秒足够覆盖后台任务的启动回执；真正的长任务走轮询，不靠长请求。
+      const TIMEOUT_MS = 60_000;
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller === null ? null : setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const requestInit = controller === null ? init : { ...init, signal: controller.signal };
       for (const base of bases) {
         try {
-          const response = await fetch(apiUrl(routePath, base), init);
+          const response = await fetch(apiUrl(routePath, base), requestInit);
           const text = await response.text().catch(() => '');
           let body = null;
           try {
@@ -1030,13 +1083,18 @@ window.__ModuleLoader__.load({
           }
           if (!response.ok) throw new Error(body?.error ?? 'HTTP ' + response.status);
           if (body === null) throw new Error('non-json-response');
-          if (body.ok !== true) throw new Error(body?.error ?? 'request-failed');
           routeBase = base;
+          // 不因 body.ok !== true 抛错：
+          // ok:false 有两种含义——「请求失败」和「请求成功但结论为否」
+          // （例如探测发现模型不可用）。HTTP 层已通过，这里无法区分，
+          // 一律交给调用方读 error 字段自行决定怎么展示。
+          // 否则调用方拿不到 selected/attempts，真实原因永远显示不出来。
           return body;
         } catch (error) {
           lastError = error;
         }
       }
+      if (timer !== null) clearTimeout(timer);
       throw lastError ?? new Error('request-failed');
     }
 
@@ -2197,7 +2255,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed, reviewProgress, autoReview, autoReviewDays, autoReviewLastAt, onAutoReview }) {
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed, reviewProgress, autoReview, autoReviewDays, autoReviewLastAt, onAutoReview, causalExperiment, causalHoldoutRate, causal, onCausal }) {
       const health = memory?.health ?? null;
       const hygiene = memory?.hygiene ?? null;
       const pending = memory?.pending ?? [];
@@ -2207,12 +2265,46 @@ window.__ModuleLoader__.load({
       const [list, setList] = React.useState(null);
       const [listTotal, setListTotal] = React.useState(0);
 
-      const load = React.useCallback(async () => {
-        const parts = ["limit=60"];
-        if (status !== '') parts.push('status=' + encodeURIComponent(status));
-        if (kind !== '') parts.push('kind=' + encodeURIComponent(kind));
-        if (query.trim() !== '') parts.push('q=' + encodeURIComponent(query.trim()));
+      const [searchDiag, setSearchDiag] = React.useState(null);
+      // 待确认队列：overview 固定只给 20 条，多了就看不全。
+      // 这里按需拉全量，避免"显示 20 条但计数 200"的割裂。
+      const [pendingAll, setPendingAll] = React.useState(null);
+
+      const loadPendingAll = React.useCallback(async () => {
         try {
+          const body = await getJson('lingxi/memory/pending');
+          const items = Array.isArray(body.items) ? body.items : [];
+          setPendingAll(items);
+        } catch {
+          setPendingAll([]);
+        }
+      }, []);
+
+      const load = React.useCallback(async () => {
+        const q = query.trim();
+        try {
+          // 有搜索词就走 /search：它比 /list?q= 多给三样判断依据——
+          // abstain（为什么没结果）、隔离拦截数（跨会话被挡了多少）、
+          // 以及本轮真实会注入的文本预览。
+          if (q !== '') {
+            const params = ['q=' + encodeURIComponent(q), 'limit=60'];
+            if (context?.sessionId) params.push('sessionId=' + encodeURIComponent(context.sessionId));
+            if (context?.workspaceId) params.push('workspaceId=' + encodeURIComponent(context.workspaceId));
+            const body = await getJson('lingxi/memory/search?' + params.join('&'));
+            const items = Array.isArray(body.items) ? body.items : [];
+            setList(items);
+            setListTotal(items.length);
+            setSearchDiag({
+              abstain: body.abstain === true,
+              isolation: Number(body.isolation?.blocked ?? 0),
+              block: String(body.block ?? ''),
+            });
+            return;
+          }
+          setSearchDiag(null);
+          const parts = ["limit=60"];
+          if (status !== '') parts.push('status=' + encodeURIComponent(status));
+          if (kind !== '') parts.push('kind=' + encodeURIComponent(kind));
           const body = await getJson('lingxi/memory/list?' + parts.join('&'));
           const items = Array.isArray(body.items) ? body.items : [];
           setList(items);
@@ -2221,7 +2313,7 @@ window.__ModuleLoader__.load({
           setList([]);
           setListTotal(0);
         }
-      }, [status, kind, query]);
+      }, [status, kind, query, context?.sessionId, context?.workspaceId]);
 
       React.useEffect(() => { load(); }, [status, kind]);
 
@@ -2252,6 +2344,23 @@ window.__ModuleLoader__.load({
       ];
 
       return h('div', { className: 'lg-stack' },
+
+        /* 搜索诊断：没有这些，"没结果"是设计还是故障就说不清 */
+        searchDiag === null
+          ? null
+          : h(Card, { key: 'searchDiag' },
+            h('div', { className: 'lg-stack' },
+              searchDiag.abstain
+                ? h('div', { className: 'lx-field-hint' }, t('searchAbstain'))
+                : null,
+              searchDiag.isolation > 0
+                ? h('div', { className: 'lx-field-hint' }, t('searchIsolation').replace('{n}', int(searchDiag.isolation)))
+                : null,
+              searchDiag.block !== ''
+                ? h('div', null,
+                  h('div', { className: 'lx-field-label' }, t('searchBlockTitle')),
+                  h('pre', { className: 'lx-pre' }, searchDiag.block))
+                : null)),
 
         /* 工具栏：搜索 + 筛选 */
         h(Card, null,
@@ -2310,6 +2419,17 @@ window.__ModuleLoader__.load({
 
         /* 待确认队列 */
         h(Collapsible, { title: t('pendingQueue') + ' · ' + int(memory?.pendingTotal ?? 0) },
+          // 队列被截断时给一条明确的展开入口——
+          // 否则用户会以为"待确认就这 20 条"。
+          Number(memory?.pendingTotal ?? 0) > pending.length
+            ? h('div', { className: 'lx-field-hint' },
+              h('button', {
+                type: 'button',
+                className: 'lg-btn lg-btn-ghost',
+                disabled: busy !== '',
+                onClick: () => loadPendingAll(),
+              }, t('pendingShowAll').replace('{n}', int(memory?.pendingTotal ?? 0))))
+            : null,
           pending.length === 0
             ? h('div', { className: 'lx-table-empty' }, t('noPending'))
             : h(DataTable, {
@@ -2328,7 +2448,7 @@ window.__ModuleLoader__.load({
                   ]),
                 },
               ],
-              rows: pending,
+              rows: pendingAll ?? pending,
               rowKey: (row) => row.id,
               empty: t('noPending'),
             })),
@@ -2388,6 +2508,47 @@ window.__ModuleLoader__.load({
               ? h('div', { className: 'lx-field-hint' }, t('reviewUsedModel').replace('{model}', String(reviewModelUsed)))
               : null),
 
+          // 因果对照：把「记忆到底有没有用」从相关性推进到因果。
+          // 默认关闭，因为它会真的少注入——代价写在开关旁边，不藏在说明里。
+          h('div', { className: 'lx-field', key: 'causal' },                                 // field 开
+            h('div', { className: 'lx-field-head' },                                          // head 开
+              h('div', null,                                                                  // 文本块 开
+                h('div', { className: 'lx-field-label' }, t('causalLabel')),
+                h('div', { className: 'lx-field-hint' }, t('causalHint')),
+                causalExperiment === true
+                  ? h('div', { className: 'lx-field-hint' },
+                    t('causalSamples')
+                      .replace('{turns}', int(causal?.turns ?? 0))
+                      .replace('{keys}', int(causal?.keys ?? 0)))
+                  : null),                                                                // 文本块 关
+              h('span', { className: 'lx-switch' },                                       // 开关 开
+                h('input', { type: 'checkbox', checked: causalExperiment === true, disabled: busy !== '', onChange: (event) => onCausal(event.target.checked) }),
+                h('span', { className: 'lx-switch-track' }),
+                h('span', { className: 'lx-switch-knob' }))),                              // 开关 关 + head 关
+            causalExperiment === true
+              ? h('div', { className: 'lx-field-hint' },
+                t('causalWarn').replace('{p}', int(Math.round((Number(causalHoldoutRate) || 0) * 100))))
+              : null,
+            causalExperiment !== true
+              ? null
+              : (causal?.rows ?? []).length === 0
+                ? h('div', { className: 'lx-table-empty' }, t('causalNone'))
+                : h(DataTable, {
+                  columns: [
+                    { key: 'key', label: t('causalColScene'), render: (row) => String(row.key) },
+                    { key: 'inj', label: t('causalColInjected'), render: (row) => row.injRate === null ? '—' : pct(row.injRate) },
+                    { key: 'hold', label: t('causalColHoldout'), render: (row) => row.holdRate === null ? '—' : pct(row.holdRate) },
+                    { key: 'delta', label: t('causalColDelta'), render: (row) => row.delta === null ? '—' : (row.delta > 0 ? '+' : '') + (Math.round(row.delta * 1000) / 10) + 'pp' },
+                    { key: 'verdict', label: t('causalColVerdict'), render: (row) => h(Chip, {
+                      kind: row.verdict === 'helps' ? 'ok' : row.verdict === 'hurts' ? 'warn' : undefined,
+                      children: t(row.verdict === 'helps' ? 'causalHelps' : row.verdict === 'hurts' ? 'causalHurts' : row.verdict === 'insufficient' ? 'causalInsufficient' : 'causalInconclusive'),
+                    }) },
+                  ],
+                  rows: causal?.rows ?? [],
+                }),
+            (causal?.rows ?? []).length > 0
+              ? h('div', { className: 'lx-field-hint' }, t('causalLegend'))
+              : null),                                                                     // field 关
           reviewState === null
             ? h('div', { className: 'lx-table-empty' }, t('reviewHint'))
             : (reviewState.suggestions ?? []).length === 0
@@ -2835,25 +2996,53 @@ window.__ModuleLoader__.load({
         return t('confirmed');
       });
 
-      // 测试当前模型：失败时弹浮层（用户能直接看到的弹窗形态）。
+      /**
+       * 启动语义诊断并轮询到完成。
+       * 探测要串多个 provider，任一挂住都不能让界面跟着挂；
+       * 有上限：最多约 3 分钟，到点如实返回超时，不留永远转圈的状态。
+       */
+      const waitForProbe = async () => {
+        let state = await postJson('lingxi/semantic/probe', {});
+        for (let i = 0; i < 150; i += 1) {
+          if (state.running !== true) return state;
+          setNotice({
+            kind: 'ok',
+            text: t('semanticDiagProgress')
+              .replace('{done}', int(state.done ?? 0))
+              .replace('{total}', int(state.total ?? 0))
+              + ' · ' + t('semanticDiagElapsed').replace('{s}', int(Math.round((state.elapsedMs ?? 0) / 1000))),
+          });
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          state = await getJson('lingxi/semantic/probe');
+        }
+        return { ...state, running: false, error: state.error || t('semanticDiagTimeout') };
+      };
+
+      // 测试当前模型：启动后台探测 + 轮询结果（同步等待会因 provider 挂住而永远转圈）。
       const semanticTest = () => run('semanticTest', async () => {
-        const body = await postJson('lingxi/semantic/probe', {});
+        const body = await waitForProbe();
         const selected = body?.selected ?? null;
         if (selected !== null && selected.ok === true) {
           setNotice({ kind: 'ok', text: t('semanticTestOk') + ' · ' + String(selected.text ?? '').slice(0, 40) });
           return t('semanticTestOk');
         }
         const reason = semanticReason(selected?.error ?? body?.error ?? 'empty-reply', t);
+        // 说清楚「哪个模型 + 什么原因」：只报"失败"等于什么都没说。
+        const modelLabel = (selected?.model === null || selected?.model === undefined)
+          ? ''
+          : String(selected.model.provider ?? '') + '/' + String(selected.model.model ?? '')
+            + (selected.model.source === 'picked' ? t('semanticTestWhichPicked') : t('semanticTestWhich'));
         setNotice({
           kind: 'error',
           title: t('semanticTestTitle'),
-          text: reason + ' · ' + t('semanticCheckHint'),
+          text: (modelLabel === '' ? '' : t('semanticTestModel').replace('{model}', modelLabel) + ' · ')
+            + reason + ' · ' + t('semanticCheckHint'),
         });
         return t('semanticTestTitle');
       });
 
       const semanticDiag = () => run('semanticDiag', async () => {
-        const body = await postJson('lingxi/semantic/probe', {});
+        const body = await waitForProbe();
         const attempts = Array.isArray(body.attempts) ? body.attempts : [];
         const rows = attempts.map((entry) => ({
           title: (String(entry.text ?? '') !== '' ? '✓ ' : '✗ ') + String(entry.provider),
@@ -2874,6 +3063,13 @@ window.__ModuleLoader__.load({
       // 自动复盘开关：写进 settings 并持久化。
       const autoReviewConfig = (next) => run('autoReview', async () => {
         await postJson('lingxi/injection/config', { autoReview: next === true });
+        await reload(true);
+        return t('confirmed');
+      });
+
+      // 因果对照开关：会真的少注入，所以在面板上把代价写清楚，由使用者决定。
+      const causalConfig = (next) => run('causal', async () => {
+        await postJson('lingxi/injection/config', { causalExperiment: next === true });
         await reload(true);
         return t('confirmed');
       });
@@ -3264,7 +3460,7 @@ window.__ModuleLoader__.load({
       } else if (data !== null) {
         if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked,
 onReviewModel: reviewModelConfig, reviewModelChoice,
-modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress, autoReview: data?.injection?.autoReview, autoReviewDays: data?.injection?.autoReviewDays, autoReviewLastAt: Number(data?.review?.at ?? 0), onAutoReview: autoReviewConfig });
+modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress, autoReview: data?.injection?.autoReview, autoReviewDays: data?.injection?.autoReviewDays, autoReviewLastAt: Number(data?.review?.at ?? 0), onAutoReview: autoReviewConfig, causalExperiment: data?.injection?.causalExperiment, causalHoldoutRate: data?.injection?.causalHoldoutRate, causal: data?.causal, onCausal: causalConfig });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

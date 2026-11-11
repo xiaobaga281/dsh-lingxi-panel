@@ -34,7 +34,41 @@ const REVIEW_SYSTEM = [
   '[{"id":"xxx","verdict":"keep|reclass|drop","kind":"...","reason":"..."}]',
 ].join('\n');
 
+/**
+ * 复盘告警：与 semanticAlert 对称的一等公民。
+ *
+ * 为什么需要：复盘会花额度、会失败、会产出残缺结果。
+ * 原来它只借用语义的统计，失败时界面一片安静——
+ * 用户看到"有建议"却不知道其中一批根本没审到。
+ *
+ * 两种告警：
+ *   review-failed  —— 连续失败（连结果都没有）
+ *   review-partial —— 跑完了但有解析错误（结果不完整）
+ */
+export function reviewAlert(snapshot, { threshold = 1 } = {}) {
+  if (snapshot === null || snapshot === undefined) return null;
+  const failed = Number(snapshot.consecutiveFailures ?? 0);
+  const lastError = String(snapshot.lastError ?? '');
+  if (failed >= threshold) {
+    return { kind: 'review-failed', count: failed, detail: lastError || 'unknown' };
+  }
+  if (lastError !== '') {
+    return { kind: 'review-partial', count: 1, detail: lastError };
+  }
+  return null;
+}
+
 export function createReviewer({ ctx, settingsRef, semantic }) {
+  /** 复盘自己的运行状态：不依赖语义统计，两者是不同任务。 */
+  const state = {
+    runs: 0,
+    okRuns: 0,
+    failedRuns: 0,
+    consecutiveFailures: 0,
+    lastError: '',
+    lastAt: 0,
+    lastPartial: false,
+  };
   /**
    * 复盘一批记忆。
    * @param {Array<{id,text,kind}>} items 最多 20 条
@@ -105,6 +139,22 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
         // 同上
       }
     }
+    // 记录运行结果：告警要读它。
+    // 「跑失败」和「跑完了但有残缺」是两种病：前者没有结果，后者建议不完整。
+    state.runs += 1;
+    state.lastAt = Date.now();
+    state.lastError = errors.join(';');
+    state.lastPartial = errors.length > 0 && out.length > 0;
+    if (errors.length === 0) {
+      state.okRuns += 1;
+      state.consecutiveFailures = 0;
+    } else if (out.length === 0) {
+      state.failedRuns += 1;
+      state.consecutiveFailures += 1;
+    } else {
+      state.okRuns += 1;
+      state.consecutiveFailures = 0;
+    }
     return { ok: errors.length === 0, verdicts: out, error: errors.join(';') };
   }
 
@@ -144,5 +194,17 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
     return out;
   }
 
-  return { review };
+  return {
+
+
+    review,
+
+
+    /** 复盘自身的运行状态：与语义统计并列，互不混用。 */
+
+
+    snapshot: () => ({ ...state, partial: state.lastPartial }),
+
+
+  };
 }

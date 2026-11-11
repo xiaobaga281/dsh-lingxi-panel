@@ -189,4 +189,60 @@ await checkAsync('批次足够小，单次请求不会要求过多输出', async
   const timeout = /timeoutMs: (\d+)/.exec(src);
   assert.ok(timeout !== null && Number(timeout[1]) >= 20000, 'review needs a longer timeout than keyword expansion, got ' + (timeout === null ? 'none' : timeout[1]));
 });
+
+await checkAsync('复盘有自己的状态与告警（与语义对等，互不混淆）', async () => {
+  const { createReviewer, reviewAlert } = await import('./review.js');
+  // 背景：复盘原来只借用语义的统计，失败时界面一片安静——
+  // 用户看到"有建议"却不知道其中一批根本没审到。
+  const bad = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    semantic: { completeRaw: async () => '垃圾输出' },
+  });
+  const out = await bad.review([{ id: 'a', kind: 'lesson', text: 'x' }]);
+  assert.equal(out.verdicts.length, 0, 'no verdicts from garbage');
+  const snap = bad.snapshot();
+  assert.equal(snap.runs, 1, 'run counted');
+  assert.equal(snap.failedRuns, 1, 'failure counted');
+  assert.ok(snap.lastError !== '', 'error recorded: ' + snap.lastError);
+  const warn = reviewAlert(snap);
+  assert.ok(warn !== null, 'failure must raise an alert');
+  assert.equal(warn.kind, 'review-failed');
+
+  // 成功时不告警
+  const good = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    semantic: { completeRaw: async () => '[{"id":"a","verdict":"keep","reason":"ok"}]' },
+  });
+  await good.review([{ id: 'a', kind: 'lesson', text: 'x' }]);
+  const gs = good.snapshot();
+  assert.equal(gs.okRuns, 1, 'success counted');
+  assert.equal(gs.consecutiveFailures, 0, 'failure counter reset');
+  assert.equal(reviewAlert(gs), null, 'no alert on success');
+
+  // 部分成功：跑完了但结果残缺 → review-partial
+  const partial = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    // 一批能解析、一批是垃圾：拿得到部分结果，但 error 非空
+    semantic: {
+      completeRaw: (() => {
+        let n = 0;
+        return async () => {
+          n += 1;
+          // 第一批返回批次里真实存在的 id（t0），否则会被当作"编造 id"剔除
+          return n === 1 ? '[{"id":"m0","verdict":"keep","reason":"ok"}]' : '垃圾';
+        };
+      })(),
+    },
+  });
+  const items = Array.from({ length: 12 }, (_, i) => ({ id: 'm' + i, kind: 'lesson', text: 't' + i }));
+  await partial.review(items, { batchSize: 6 });
+  const ps = partial.snapshot();
+  assert.ok(ps.lastError !== '', 'partial run keeps the error: ' + ps.lastError);
+  const pw = reviewAlert(ps);
+  assert.ok(pw !== null, 'partial run must warn');
+  assert.equal(pw.kind, 'review-partial', 'partial is a distinct kind, got ' + pw.kind);
+});
 report();

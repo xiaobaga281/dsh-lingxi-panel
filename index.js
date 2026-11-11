@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { LingxiMemory } from './memory/index.js';
 import { canonicalFailure, createInjector, userMessageText } from './injector.js';
 import { createSemantic, semanticAlert } from './semantic.js';
-import { createReviewer } from './review.js';
+import { createReviewer, reviewAlert } from './review.js';
 import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures,
   analyzeCausalExperiment } from './metrics.js';
 import { annotate } from './noise.js';
@@ -112,7 +112,12 @@ export function apply(ctx, config) {
    * 探一次当前语义模型：返回 { ok, text, error }。
    * 用于「开启开关」当场验证与启动自检，避免"已开启但零产出"静默。
    */
-  async function probeSemanticOnce() {
+  /**
+   * 探一次当前模型。**必须有时限**：
+   * provider 可能"连上了但不回数据"，没有超时的 for-await 会永久等待，
+   * 调用它的 HTTP 请求也就永久挂起——界面表现就是"点了没反应"。
+   */
+  async function probeSemanticOnce(timeoutMs = 20_000) {
     const out = { ok: false, text: '', error: null, model: null, at: Date.now() };
     try {
       const llm = ctx?.get?.('llm');
@@ -134,12 +139,21 @@ export function apply(ctx, config) {
       let text = '';
       let reasoning = '';
       let count = 0;
+      // 硬时限：到点停止等待并如实报告超时，而不是无限期挂着。
+      const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 20_000);
+      let timedOut = false;
       for await (const chunk of iterable) {
+        if (Date.now() > deadline) { timedOut = true; break; }
         count += 1;
         if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
         else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') reasoning += chunk.text;
         else if (typeof chunk === 'string') text += chunk;
         if (count >= 40) break;
+      }
+      if (timedOut && text.trim() === '' && reasoning.trim() === '') {
+        out.error = 'timeout';
+        out.at = Date.now();
+        return out;
       }
       if (text.trim() === '' && reasoning.trim() !== '') text = reasoning.slice(-200);
       out.text = text.trim().slice(0, 60);
@@ -240,6 +254,126 @@ export function apply(ctx, config) {
     .catch(() => {});
   // 复盘运行状态（后台任务与轮询共享）
   let reviewRun = null;
+
+  /* ---------------- 语义诊断（后台任务） ----------------
+     串行探测 8 个 provider、且没有超时，会让请求永久挂起。
+     改为：后台跑 + 并行探测 + 每个 provider 独立超时 + 可轮询进度。 */
+  let probeRun = null;
+
+  /** 单个 provider 的探测，带独立超时；任何异常都收敛成一条结果。 */
+  const probeOneProvider = async (llm, provider, index) => {
+    const attempt = { provider, text: '', chunks: 0, error: null, model: '' };
+    const PER_PROVIDER_MS = 15_000;
+    try {
+      const list = await llm?.listModels?.(provider) ?? [];
+      const first = (Array.isArray(list) ? list : [])[0];
+      const modelId = String(typeof first === 'string' ? first : (first?.id ?? first?.name ?? ''));
+      if (modelId === '') { attempt.error = 'no-model'; return attempt; }
+      attempt.model = modelId;
+      const iterable = llm.stream({
+        provider,
+        model: modelId,
+        system: '只回答两个字，不要解释。',
+        messages: [{
+          id: 'lingxi-diag-' + String(index),
+          role: 'user',
+          content: [{ type: 'text', text: '回复：可用' }],
+          source: { kind: 'user' },
+        }],
+        maxTokens: 32,
+      });
+      let text = '';
+      const deadline = Date.now() + PER_PROVIDER_MS;
+      let timedOut = false;
+      for await (const chunk of iterable) {
+        if (Date.now() > deadline) { timedOut = true; break; }
+        attempt.chunks += 1;
+        if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
+        else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') text += chunk.text;
+        if (attempt.chunks >= 40) break;
+      }
+      attempt.text = text.trim().slice(0, 60);
+      if (attempt.text === '' && timedOut) attempt.error = 'timeout';
+    } catch (error) {
+      attempt.error = errorMessage(error).slice(0, 100);
+    }
+    return attempt;
+  };
+
+  /** 后台跑完整诊断：并行探测，逐个回报进度。 */
+  const startProbe = () => {
+    if (probeRun !== null && probeRun.running === true) return;
+    probeRun = {
+      running: true,
+      ok: false,
+      done: 0,
+      total: 0,
+      startedAt: Date.now(),
+      finishedAt: 0,
+      selected: null,
+      attempts: [],
+      working: [],
+      error: '',
+    };
+    (async () => {
+      try {
+        const selected = await probeSemanticOnce(20_000);
+        const llm = ctx?.get?.('llm');
+        const providers = (() => {
+          try {
+            const raw = llm?.listProviders?.() ?? [];
+            return (Array.isArray(raw) ? raw : []).map((entry) => String(entry?.id ?? '')).filter((id) => id !== '');
+          } catch {
+            return [];
+          }
+        })();
+        if (probeRun !== null) {
+          probeRun.selected = selected;
+          probeRun.ok = selected.ok === true;
+          probeRun.total = providers.length;
+        }
+        // 并行：慢的那个不再拖住其余结果
+        const attempts = await Promise.all(
+          providers.map((provider, index) => probeOneProvider(llm, provider, index)
+            .then((attempt) => {
+              if (probeRun !== null) probeRun.done += 1;
+              return attempt;
+            })),
+        );
+        if (probeRun !== null) {
+          probeRun.attempts = attempts;
+          probeRun.working = attempts.filter((entry) => entry.text !== '').map((entry) => entry.provider);
+          probeRun.running = false;
+          probeRun.finishedAt = Date.now();
+        }
+      } catch (error) {
+        if (probeRun !== null) {
+          probeRun.running = false;
+          probeRun.finishedAt = Date.now();
+          probeRun.error = errorMessage(error);
+        }
+      }
+    })();
+  };
+
+  /** 投影给客户端：进度 + 结果。 */
+  const probeStateForClient = () => {
+    if (probeRun === null) {
+      return { running: false, ok: false, done: 0, total: 0, selected: null, attempts: [], working: [], error: '', elapsedMs: 0 };
+    }
+    const until = probeRun.finishedAt > 0 ? probeRun.finishedAt : Date.now();
+    return {
+      running: probeRun.running === true,
+      ok: probeRun.ok === true,
+      done: probeRun.done,
+      total: probeRun.total,
+      selected: probeRun.selected,
+      attempts: probeRun.attempts,
+      working: probeRun.working,
+      error: probeRun.error,
+      elapsedMs: until - probeRun.startedAt,
+    };
+  };
 
   /**
    * 启动一次复盘（后台执行）。路由与自动调度共用。
@@ -899,6 +1033,10 @@ export function apply(ctx, config) {
       const demoteLimit = Math.max(5, Math.round(live * 0.1));
       if (demoted > demoteLimit) list.push({ kind: 'demote-spike', count: demoted });
       if (lastAudit !== null && lastAudit.ok !== true) list.push({ kind: 'audit-failed', count: (lastAudit.lines ?? []).length });
+      // 复盘告警：与语义召回并列。
+      // 两者是不同任务，混用会让"复盘坏了"被误读成"召回坏了"。
+      const reviewWarn = reviewAlert(reviewer.snapshot());
+      if (reviewWarn !== null) list.push({ kind: reviewWarn.kind, count: reviewWarn.count, reason: reviewWarn.detail });
       if (quarantined > Math.max(20, Math.round(live * 0.2))) list.push({ kind: 'quarantine-spike', count: quarantined });
       const coverage = efficacy?.coverage ?? null;
       if (coverage !== null && Number(coverage.total ?? 0) > 0 && Number(coverage.covered ?? 0) === 0) {
@@ -1413,6 +1551,8 @@ export function apply(ctx, config) {
         causal: causalCache ?? null,
         reviewModelUsed: lastReviewModel,
         reviewStats: semantic.reviewSnapshot(),
+        // 复盘自身的运行状态（与 semantic 的统计分开，避免互相污染）
+        reviewOwn: reviewer.snapshot(),
         audit: lastAudit,
         alerts,
         gapFilled,
@@ -1913,7 +2053,12 @@ export function apply(ctx, config) {
         const timer = setTimeout(() => { try { child.kill(); } catch { /* ignore */ } }, 60_000);
         child.on('close', (code) => {
           clearTimeout(timer);
-          sendJson(response, 200, { ok: code === 0, lines: out.split('\n').filter((line) => line.trim() !== '') });
+          const auditLines = out.split('\n').filter((line) => line.trim() !== '').slice(-30);
+          // 必须记下来：告警规则要读它。
+          // 原来只回给前端、不写 lastAudit，导致「体检失败」永远不会报警——
+          // 界面上那条告警规则等于摆设。
+          lastAudit = { ok: code === 0, at: Date.now(), lines: auditLines };
+          sendJson(response, 200, { ok: code === 0, lines: auditLines });
         });
       });
 
@@ -2113,54 +2258,21 @@ export function apply(ctx, config) {
       // 诊断探针：把 llm.stream 真实返回的 chunk 形状原样打出来。
       // 语义召回曾长期"开启但零产出"，就是因为 chunk 结构与假设不符却无从观测。
       // 手动诊断：只在用户点击时运行。会消耗多次模型调用，故不做启动自检。
+      // 语义诊断：POST 启动（后台跑，立即返回），GET 轮询结果。
+      //
+      // 为什么必须后台：原来这条路由是同步的——8 个 provider 串行探测，
+      // 每个都可能挂住（连上但不回数据），且全链路没有任何超时。
+      // 结果就是请求永久挂起、界面"点了没反应"，用户完全不知道在发生什么。
       route('/lingxi/semantic/probe', async (request, response) => {
         if (!allowGetPost(request, response)) return;
+        const method = request.method ?? 'GET';
         try {
-          const selected = await probeSemanticOnce();
-          const llm = ctx?.get?.('llm');
-          const providers = (() => {
-            try {
-              const raw = llm?.listProviders?.() ?? [];
-              return (Array.isArray(raw) ? raw : []).map((entry) => String(entry?.id ?? '')).filter((id) => id !== '');
-            } catch {
-              return [];
-            }
-          })();
-          const attempts = [];
-          for (const provider of providers.slice(0, 8)) {
-            const attempt = { provider, text: '', chunks: 0, error: null };
-            try {
-              const list = await llm?.listModels?.(provider) ?? [];
-              const first = (Array.isArray(list) ? list : [])[0];
-              const modelId = String(typeof first === 'string' ? first : (first?.id ?? first?.name ?? ''));
-              if (modelId === '') { attempt.error = 'no-model'; attempts.push(attempt); continue; }
-              const iterable = llm.stream({
-                provider,
-                model: modelId,
-                system: '只回答两个字，不要解释。',
-                messages: [{
-                  id: 'lingxi-diag-' + String(attempts.length),
-                  role: 'user',
-                  content: [{ type: 'text', text: '回复：可用' }],
-                  source: { kind: 'user' },
-                }],
-                maxTokens: 32,
-              });
-              let text = '';
-              for await (const chunk of iterable) {
-                attempt.chunks += 1;
-                if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
-                else if (chunk?.type === 'reasoning-delta' && typeof chunk.text === 'string') text += chunk.text;
-                if (attempt.chunks >= 40) break;
-              }
-              attempt.text = text.trim().slice(0, 60);
-            } catch (error) {
-              attempt.error = errorMessage(error).slice(0, 100);
-            }
-            attempts.push(attempt);
+          if (method === 'GET' || (probeRun !== null && probeRun.running === true)) {
+            sendJson(response, 200, { ok: true, ...probeStateForClient() });
+            return;
           }
-          const working = attempts.filter((entry) => entry.text !== '').map((entry) => entry.provider);
-          sendJson(response, 200, { ok: selected.ok === true, selected, attempts, working });
+          startProbe();
+          sendJson(response, 200, { ok: true, ...probeStateForClient() });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
@@ -2232,6 +2344,7 @@ export function apply(ctx, config) {
           const list = [];
           const sem = semantic.snapshot();
           const semAlert = semanticAlert(sem);
+        const revAlert = reviewAlert(reviewer.snapshot());
           if (semAlert !== null) {
             list.push({
               code: 'semantic-empty',

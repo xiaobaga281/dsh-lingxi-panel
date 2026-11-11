@@ -253,7 +253,11 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   function ensureSession(sessionId) {
     let entry = sessionStats.get(sessionId);
     if (entry === undefined) {
-      entry = { toolCalls: 0, toolFailures: 0, injectedChars: 0, records: 0, at: Date.now() };
+      entry = {
+      toolCalls: 0, toolFailures: 0, injectedChars: 0, records: 0, at: Date.now(),
+      // 因果对照分组：默认空，注入时按实际内容填充
+      guardKeys: [], heldOutKeys: [], experimentOn: false,
+    };
       sessionStats.set(sessionId, entry);
     }
     return entry;
@@ -420,9 +424,17 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
         entry.text = block === '' ? '' : block + footer;
         entry.ids = fitted.items.map((item) => item.record.id);
         // 供因果对照：本轮实际注入了哪些守卫键、保留了哪些。
-        entry.guardKeys = fitted.items.map((item) => guardKeyOf(item.record)).filter((k) => k !== null);
+        // 必须写进 sessionStats —— sessionSnapshot 读的是它，
+        // 而 entry 属于 slot() 的块缓存（另一个 Map）。
+        // 写错容器会让因果对照永远拿不到分组，turns 恒为 0。
+        const guardKeys = fitted.items.map((item) => guardKeyOf(item.record)).filter((k) => k !== null);
+        entry.guardKeys = guardKeys;
         entry.heldOutKeys = heldOutKeys;
         entry.experimentOn = experimentOn;
+        const statsEntry = ensureSession(sessionId);
+        statsEntry.guardKeys = guardKeys;
+        statsEntry.heldOutKeys = heldOutKeys;
+        statsEntry.experimentOn = experimentOn;
         // 曝光登记：被注入过几次（用于相关命中率，不改置信度）。
         if (typeof memory.noteExposure === 'function') {
           memory.noteExposure(fitted.items.map((item) => item.record.id)).catch(() => {});

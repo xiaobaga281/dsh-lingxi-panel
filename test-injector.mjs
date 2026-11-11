@@ -692,4 +692,53 @@ await check('语义告警条件：开启且失败≥1 即告警', async () => {
   // 阈值可调：诊断场景可以更灵敏
   assert.equal(semanticAlert({ enabled: true, consecutiveFailures: 1 }, { threshold: 3 }), null, 'custom threshold still respected');
 });
+
+await check('语义诊断不会无限挂起：每个探测都有时限', async () => {
+  const fs = await import('node:fs');
+  const host = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const client = fs.readFileSync(new URL('./client.js', import.meta.url), 'utf8');
+  // 背景：诊断路由曾是同步串行 8 个 provider、且全链路无超时。
+  // provider 连上但不回数据时，请求永久挂起，界面表现为"点了没反应"。
+  assert.ok(/probeSemanticOnce\(timeoutMs/.test(host), 'probe takes a timeout');
+  assert.ok(host.includes('const deadline = Date.now() + Math.max(1000'), 'probe has a hard deadline');
+  assert.ok(host.includes('PER_PROVIDER_MS'), 'each provider probe has its own budget');
+  assert.ok(host.includes('Promise.all('), 'providers are probed in parallel, not serially');
+  // 后台化：路由必须先回执，再让客户端轮询
+  assert.ok(host.includes('probeStateForClient'), 'probe exposes pollable state');
+  assert.ok(host.includes('startProbe()'), 'probe runs in background');
+  // 客户端：请求要有超时，长任务走轮询
+  assert.ok(client.includes('AbortController'), 'client fetch has an abort controller');
+  assert.ok(client.includes('TIMEOUT_MS'), 'client fetch has a timeout');
+  assert.ok(client.includes('waitForProbe'), 'client polls instead of waiting on one long request');
+  assert.ok(client.includes('semanticDiagTimeout'), 'client reports timeout honestly');
+});
+
+await check('因果分组必须写进快照读的那个容器（否则 turns 恒为 0）', async () => {
+  const { createInjector } = await import('./injector.js');
+  const { LingxiMemory } = await import('./memory/index.js');
+  const path = await import('node:path');
+  const { homedir } = await import('node:os');
+  const memory = new LingxiMemory({ dir: path.join(homedir(), '.dsh', 'lingxi-memory') });
+  await memory.init();
+  // 实验全开、100% 保留率：这样必然出现 heldOutKeys，能验证写入路径
+  const injector = createInjector({
+    memory,
+    listWorkspace: () => null,
+    semantic: null,
+    config: { causal: { enabled: true, holdoutRate: 0.3 } },
+  });
+  const sid = 'arm-test-' + Date.now();
+  await injector.refresh(sid, 'read 找不到文件怎么办');
+  const snap = injector.sessionSnapshot(sid);
+  // 关键：分组信息必须能被 sessionSnapshot 读到。
+  // 曾经写进 slot() 的块缓存（另一个 Map），快照读不到 → 因果对照永远 0 轮。
+  assert.equal(snap.experimentOn, true, 'experiment flag must reach the snapshot');
+  assert.ok(Array.isArray(snap.guardKeys), 'guardKeys is an array');
+  assert.ok(Array.isArray(snap.heldOutKeys), 'heldOutKeys is an array');
+  // 至少一边非空：说明分组确实按内容产生了
+  assert.ok(
+    snap.guardKeys.length + snap.heldOutKeys.length > 0,
+    'at least one arm must be populated: ' + JSON.stringify({ g: snap.guardKeys, h: snap.heldOutKeys }),
+  );
+});
 report();
