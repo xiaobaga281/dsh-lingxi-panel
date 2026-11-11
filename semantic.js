@@ -269,15 +269,34 @@ export function createSemantic({ ctx, settingsRef }) {
    * 查询扩展：同义关键词并入查询串。
    * 关键修复：并发去重按查询文本分桶（原实现是全局单例，会把 A 会话的扩展结果返回给 B 会话）。
    */
+  /**
+   * 查询关键词扩展：**只读缓存，绝不阻塞注入**。
+   *
+   * 设计取舍：语义扩展的价值是"换一种说法也能召回"，
+   * 但它不该让每一轮对话多等 2~8 秒。因此：
+   *   - 缓存命中 → 立刻返回；
+   *   - 未命中 → 立即返回空串（词法路径照常），并把查询排进后台预热；
+   *   - 预热完成后写缓存，同一查询下次就能用上。
+   * 副作用：新查询的第一次不享受扩展。这是有意的——用"晚一轮生效"换"永不阻塞"。
+   */
   async function expandQuery(query) {
     if (!enabled()) return '';
     const text = String(query ?? '').trim();
     if (text.length < 2) return '';
+
     const cached = queryCache.get(text);
     if (cached !== undefined && Date.now() - cached.at < QUERY_TTL) return cached.keywords;
-    const pending = inflight.get(text);
-    if (pending !== undefined) return pending;
-    if (!canCallNow()) return '';
+
+    // 未命中：不等待模型，只安排后台预热。
+    scheduleWarm(text);
+    return '';
+  }
+
+  /** 预热队列：同一查询只排一次，且受节流与并发上限约束。 */
+  function scheduleWarm(text) {
+    if (inflight.has(text)) return;
+    if (inflight.size >= 3) return;
+    if (!canCallNow()) return;
     const task = (async () => {
       try {
         const raw = await complete(EXPAND_SYSTEM, text);
@@ -288,22 +307,32 @@ export function createSemantic({ ctx, settingsRef }) {
           stats.expandedQueries += 1;
           stats.lastExpansion = merged.slice(0, 120);
         }
-        // 上限保护：缓存无限增长会吃内存
         if (queryCache.size > 200) {
           const oldest = [...queryCache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 50);
           for (const [key] of oldest) queryCache.delete(key);
         }
-        return merged;
       } catch {
-        return '';
+        // 预热失败静默：不进入告警（下一轮还有机会）
       } finally {
         inflight.delete(text);
       }
     })();
     inflight.set(text, task);
-    return task;
   }
 
+  /** 等所有预热完成（仅测试与诊断需要，注入路径不调用）。 */
+  async function settle() {
+    await Promise.allSettled([...inflight.values()]);
+  }
+
+  /** 同步取缓存（给同步场景用，绝不触发调用）。 */
+  function cachedExpansion(query) {
+    const text = String(query ?? '').trim();
+    if (text === '') return '';
+    const hit = queryCache.get(text);
+    if (hit === undefined || Date.now() - hit.at >= QUERY_TTL) return '';
+    return hit.keywords;
+  }
   function textHash(text) {
     let hash = 0;
     const value = String(text ?? '');
@@ -451,5 +480,5 @@ export function createSemantic({ ctx, settingsRef }) {
     };
   }
 
-  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, noteProbeResult, currentModel, snapshot, reviewSnapshot };
+  return { isEnabled: enabled, expandQuery, cachedExpansion, settle, keywordsFor, consolidate, completeRaw, noteProbeResult, currentModel, snapshot, reviewSnapshot };
 }

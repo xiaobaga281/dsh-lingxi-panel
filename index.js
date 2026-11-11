@@ -50,6 +50,9 @@ export function apply(ctx, config) {
     procedureSessions: 2,
     semantic: false,
     reviewModel: null,
+    // 自动复盘：默认开启，周级。记忆会持续增长，靠人记得点不现实。
+    autoReview: true,
+    autoReviewDays: 7,
     // 启发式抽规则默认关闭：用户已明确它是"太片面"的方案，只留模型主动写入。
     instructions: false,
     evolve: true,
@@ -86,6 +89,13 @@ export function apply(ctx, config) {
     if (bootMeta?.semantic !== undefined) settings.semantic = bootMeta.semantic === true;
     settings.semanticModel = bootMeta?.semanticModel ?? null;
     settings.reviewModel = bootMeta?.reviewModel ?? null;
+    if (bootMeta?.autoReview !== undefined) settings.autoReview = bootMeta.autoReview !== false;
+    if (Number.isFinite(Number(bootMeta?.autoReviewDays))) settings.autoReviewDays = Math.max(1, Math.min(90, Number(bootMeta.autoReviewDays)));
+    // 恢复上次复盘结果：不必重启后就重跑（复盘是花 token 的操作）
+    if (bootMeta?.lastReview !== undefined && bootMeta.lastReview !== null) {
+      lastReview = bootMeta.lastReview;
+      lastReviewModel = String(bootMeta.lastReview.model ?? '');
+    }
     if (bootMeta?.adoptionOverrides !== undefined) applyAdoptionOverrides(bootMeta.adoptionOverrides ?? {});
   } catch {
     // meta 暂不存在（首次运行）就按默认
@@ -196,6 +206,84 @@ export function apply(ctx, config) {
   let lastReviewModel = null;
   // 复盘运行状态（后台任务与轮询共享）
   let reviewRun = null;
+
+  /**
+   * 启动一次复盘（后台执行）。路由与自动调度共用。
+   * 完成后把结果写进 meta，重启后仍能看到上次建议，不必重复烧 token。
+   */
+  async function startReview() {
+    if (reviewRun !== null && reviewRun.running === true) {
+      return { ok: true, already: true };
+    }
+    await ensureMemory();
+    // 复盘不依赖"语义召回开关"：那是两个任务。
+    // 它只需要一个可用的模型（reviewModel，未选则跟随默认）。
+    const reviewModel = await semantic.currentModel('review');
+    if (reviewModel === null) {
+      return { ok: false, error: 'no-model' };
+    }
+    const records = await memory.list({ limit: 200 });
+    const items = records
+      .filter((record) => String(record.status ?? '') !== 'retired')
+      .map((record) => ({ id: record.id, kind: record.kind, text: record.text }));
+    reviewRun = {
+      running: true,
+      ok: false,
+      done: 0,
+      total: items.length,
+      scanned: items.length,
+      startedAt: Date.now(),
+      finishedAt: 0,
+      suggestions: [],
+      error: '',
+      model: reviewModel.provider + '/' + reviewModel.model,
+    };
+    const runInBackground = async () => {
+      try {
+        const outcome = await reviewer.review(items, {
+          onProgress: (done, total) => {
+            if (reviewRun !== null) {
+              reviewRun.done = Number(done ?? 0);
+              reviewRun.total = Number(total ?? 0);
+            }
+          },
+        });
+        const byId = new Map(records.map((record) => [record.id, record]));
+        const suggestions = outcome.verdicts.map((verdict) => {
+          const record = byId.get(verdict.id);
+          return {
+            ...verdict,
+            currentKind: String(record?.kind ?? ''),
+            text: String(record?.text ?? '').slice(0, 120),
+          };
+        });
+        lastReview = { at: Date.now(), suggestions, error: outcome.error };
+        lastReviewModel = reviewRun === null ? '' : reviewRun.model;
+        if (reviewRun !== null) {
+          reviewRun.running = false;
+          reviewRun.done = reviewRun.total;
+          reviewRun.finishedAt = Date.now();
+          reviewRun.suggestions = suggestions;
+          reviewRun.error = outcome.error;
+          reviewRun.ok = outcome.ok;
+        }
+        // 持久化：重启后仍能看到上次建议，避免每次重跑烧 token
+        await writeMeta({
+          lastReview: { at: Date.now(), suggestions, error: outcome.error, model: lastReviewModel },
+          lastReviewAt: Date.now(),
+        }).catch(() => {});
+      } catch (error) {
+        if (reviewRun !== null) {
+          reviewRun.running = false;
+          reviewRun.finishedAt = Date.now();
+          reviewRun.error = errorMessage(error);
+          reviewRun.ok = false;
+        }
+      }
+    };
+    runInBackground();
+    return { ok: true };
+  }
 
   /** 投影给客户端：进度、结果、耗时。 */
   const reviewStateForClient = () => {
@@ -1204,7 +1292,11 @@ export function apply(ctx, config) {
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
           reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
             reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
           },
         evolution,
         scenes: injector.sceneSnapshot(),
@@ -1269,6 +1361,8 @@ export function apply(ctx, config) {
         semanticProbe: lastSemanticProbe,
         review: lastReview,
         reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
         reviewModelUsed: lastReviewModel,
         reviewStats: semantic.reviewSnapshot(),
         audit: lastAudit,
@@ -1313,6 +1407,33 @@ export function apply(ctx, config) {
       writeStatus().catch(() => {});
     };
   }, 'dsh-lingxi-panel: telemetry');
+
+  // 自动复盘：小时级检查，到期才真正跑（避免每次启动都花 token）。
+  ctx.effect(() => {
+    const tick = async () => {
+      try {
+        if (settings.autoReview !== true) return;
+        if (settings.semantic !== true && settings.reviewModel === null) return;
+        const meta = await readMeta();
+        const lastAt = Number(meta?.lastReviewAt ?? 0);
+        const periodMs = Math.max(1, Number(settings.autoReviewDays) || 7) * 86_400_000;
+        if (lastAt > 0 && Date.now() - lastAt < periodMs) return;
+        // 到期：起一次复盘（后台跑，不阻塞）
+        await startReview().catch(() => {});
+      } catch {
+        // 调度失败不影响主流程
+      }
+    };
+    // 启动后 3 分钟先查一次（避开启动高峰），之后每小时一次
+    const kickoff = setTimeout(() => { tick().catch(() => {}); }, 3 * 60_000);
+    const timer = setInterval(() => { tick().catch(() => {}); }, 3_600_000);
+    if (typeof kickoff.unref === 'function') kickoff.unref();
+    if (typeof timer.unref === 'function') timer.unref();
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(timer);
+    };
+  }, 'dsh-lingxi-panel: auto review');
 
   ctx.effect(() => {
     refreshEfficacy().catch(() => {});
@@ -1507,7 +1628,11 @@ export function apply(ctx, config) {
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
           reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
             reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
           },
           search: { ...searchStats },
           storage: { dir: memoryDir, pointer: readStoragePointer() },
@@ -1518,6 +1643,8 @@ export function apply(ctx, config) {
           semanticProbe: lastSemanticProbe,
           review: lastReview,
           reviewModel: settings.reviewModel ?? null,
+        autoReview: settings.autoReview === true,
+        autoReviewDays: Number(settings.autoReviewDays) || 7,
           reviewModelUsed: lastReviewModel,
           reviewStats: semantic.reviewSnapshot(),
           audit: lastAudit,
@@ -1996,6 +2123,7 @@ export function apply(ctx, config) {
       // 复盘：POST 启动（后台跑，立即返回），GET 轮询进度。
       // 为什么要后台：一次复盘要跑多批模型调用，同步请求期间客户端拿不到任何进度，
       // 只能干等一个"进行中"，用户无从判断是在工作还是卡住了。
+      // 复盘：POST 启动（后台跑，立即返回），GET 轮询进度。
       route('/lingxi/memory/review', async (request, response) => {
         if (!allowGetPost(request, response)) return;
         const method = request.method ?? 'GET';
@@ -2005,70 +2133,11 @@ export function apply(ctx, config) {
             sendJson(response, 200, { ok: true, ...reviewStateForClient() });
             return;
           }
-          await ensureMemory();
-          // 复盘不依赖"语义召回开关"：那是两个任务。
-          // 它只需要一个可用的模型（reviewModel，未选则跟随默认）。
-          const reviewModel = await semantic.currentModel('review');
-          if (reviewModel === null) {
-            sendJson(response, 200, { ok: false, error: 'no-model' });
+          const started = await startReview();
+          if (started.ok !== true) {
+            sendJson(response, 200, { ok: false, error: started.error });
             return;
           }
-          const records = await memory.list({ limit: 200 });
-          const items = records
-            .filter((record) => String(record.status ?? '') !== 'retired')
-            .map((record) => ({ id: record.id, kind: record.kind, text: record.text }));
-          reviewRun = {
-            running: true,
-            ok: false,
-            done: 0,
-            total: items.length,
-            scanned: items.length,
-            startedAt: Date.now(),
-            finishedAt: 0,
-            suggestions: [],
-            error: '',
-            model: reviewModel.provider + '/' + reviewModel.model,
-          };
-          // 后台执行：先回执，再干活。
-          const runInBackground = async () => {
-            try {
-              const outcome = await reviewer.review(items, {
-                onProgress: (done, total) => {
-                  if (reviewRun !== null) {
-                    reviewRun.done = Number(done ?? 0);
-                    reviewRun.total = Number(total ?? 0);
-                  }
-                },
-              });
-              const byId = new Map(records.map((record) => [record.id, record]));
-              const suggestions = outcome.verdicts.map((verdict) => {
-                const record = byId.get(verdict.id);
-                return {
-                  ...verdict,
-                  currentKind: String(record?.kind ?? ''),
-                  text: String(record?.text ?? '').slice(0, 120),
-                };
-              });
-              lastReview = { at: Date.now(), suggestions, error: outcome.error };
-              lastReviewModel = reviewRun === null ? '' : reviewRun.model;
-              if (reviewRun !== null) {
-                reviewRun.running = false;
-                reviewRun.done = reviewRun.total;
-                reviewRun.finishedAt = Date.now();
-                reviewRun.suggestions = suggestions;
-                reviewRun.error = outcome.error;
-                reviewRun.ok = outcome.ok;
-              }
-            } catch (error) {
-              if (reviewRun !== null) {
-                reviewRun.running = false;
-                reviewRun.finishedAt = Date.now();
-                reviewRun.error = errorMessage(error);
-                reviewRun.ok = false;
-              }
-            }
-          };
-          runInBackground();
           sendJson(response, 200, { ok: true, ...reviewStateForClient() });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
@@ -2249,6 +2318,17 @@ export function apply(ctx, config) {
         settings.semanticModel = valid ? { provider: picked.provider, model: picked.model } : null;
         await writeMeta({ semanticModel: settings.semanticModel });
         delete injectionPatch.semanticModel;
+        }
+        if (injectionPatch.autoReview !== undefined) {
+          settings.autoReview = injectionPatch.autoReview === true;
+          await writeMeta({ autoReview: settings.autoReview });
+          delete injectionPatch.autoReview;
+        }
+        if (injectionPatch.autoReviewDays !== undefined) {
+          const days = Number(injectionPatch.autoReviewDays);
+          settings.autoReviewDays = Number.isFinite(days) ? Math.max(1, Math.min(90, days)) : 7;
+          await writeMeta({ autoReviewDays: settings.autoReviewDays });
+          delete injectionPatch.autoReviewDays;
         }
         if (injectionPatch.reviewModel !== undefined) {
         const pickedReview = injectionPatch.reviewModel ?? null;

@@ -290,6 +290,10 @@ window.__ModuleLoader__.load({
         reviewHint: '让模型逐条审查：分类是否错误、是否已经没有价值。只给建议，不自动改。',
         reviewRun: '开始复盘',
         reviewModelLabel: '复盘模型',
+        autoReviewLabel: '自动复盘',
+        autoReviewHint: '每 {d} 天自动审查一次（后台跑，只花少量额度）。关闭后只能手动点。',
+        autoReviewLast: '上次复盘：{when}',
+        autoReviewNever: '尚未自动复盘过',
         reviewModelHint: '复盘用哪个模型审查记忆。与语义召回相互独立，可以各选各的。',
         reviewNoModel: '没有可用模型：请在下方选择一个，或在模型配置里设置默认模型',
         reviewUsedModel: '本次使用：{model}',
@@ -779,6 +783,10 @@ window.__ModuleLoader__.load({
         reviewHint: 'The model audits each memory: misclassified, or no longer worth keeping. Suggestions only.',
         reviewRun: 'Run review',
         reviewModelLabel: 'Review model',
+        autoReviewLabel: 'Automatic review',
+        autoReviewHint: 'Audits every {d} days in the background (small cost). Off = manual only.',
+        autoReviewLast: 'Last review: {when}',
+        autoReviewNever: 'Never reviewed automatically yet',
         reviewModelHint: 'Which model audits the memories. Independent from semantic recall.',
         reviewNoModel: 'No model available: pick one below, or set a default in model settings',
         reviewUsedModel: 'used: {model}',
@@ -2590,7 +2598,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed, reviewProgress }) {
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed, reviewProgress, autoReview, autoReviewDays, autoReviewLastAt, onAutoReview }) {
       const health = memory?.health ?? null;
       const hygiene = memory?.hygiene ?? null;
       const pending = memory?.pending ?? [];
@@ -2750,6 +2758,21 @@ window.__ModuleLoader__.load({
               h('div', { className: 'lx-progress-track' },
                 h('div', { className: 'lx-progress-fill', style: { width: (reviewProgress.total > 0 ? Math.round((reviewProgress.done / reviewProgress.total) * 100) : 10) + '%' } })))
             : null,
+
+          // 自动复盘：默认周级。记忆持续增长，靠人记得点不现实。
+          h('div', { className: 'lx-field', key: 'autoReview' },
+            h('div', { className: 'lx-field-head' },
+              h('div', null,
+                h('div', { className: 'lx-field-label' }, t('autoReviewLabel')),
+                h('div', { className: 'lx-field-hint' }, t('autoReviewHint').replace('{d}', int(autoReviewDays ?? 7))),
+                h('div', { className: 'lx-field-hint' },
+                  autoReviewLastAt > 0
+                    ? t('autoReviewLast').replace('{when}', relTime(autoReviewLastAt, t))
+                    : t('autoReviewNever'))),
+              h('span', { className: 'lx-switch' },
+                h('input', { type: 'checkbox', checked: autoReview === true, disabled: busy !== '', onChange: (event) => onAutoReview(event.target.checked) }),
+                h('span', { className: 'lx-switch-track' }),
+                h('span', { className: 'lx-switch-knob' })))),
 
           // 复盘模型：与语义召回并列的独立选择（两个任务可以各用各的模型）
           h('div', { className: 'lx-field', key: 'reviewModel' },
@@ -3249,6 +3272,13 @@ window.__ModuleLoader__.load({
         return t('confirmed');
       });
 
+      // 自动复盘开关：写进 settings 并持久化。
+      const autoReviewConfig = (next) => run('autoReview', async () => {
+        await postJson('lingxi/injection/config', { autoReview: next === true });
+        await reload(true);
+        return t('confirmed');
+      });
+
       // 复盘模型：独立于语义召回的开关与选择。
       const reviewModelConfig = (value) => run('reviewModel', async () => {
         const sep = String(value ?? '').indexOf('|');
@@ -3635,7 +3665,7 @@ window.__ModuleLoader__.load({
       } else if (data !== null) {
         if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked,
 onReviewModel: reviewModelConfig, reviewModelChoice,
-modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress });
+modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed, reviewProgress, autoReview: data.autoReview, autoReviewDays: data.autoReviewDays, autoReviewLastAt: Number(data?.review?.at ?? 0), onAutoReview: autoReviewConfig });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,

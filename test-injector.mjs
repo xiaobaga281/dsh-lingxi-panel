@@ -633,9 +633,38 @@ await check('注入块整体不超预算（header/footer 也计入）', async ()
   assert.ok(text.length <= budget, "block " + text.length + " must fit budget " + budget);
 });
 
-await check('语义连续失败会被计数并在成功后清零（告警的依据）', async () => {
+await check('语义扩展不阻塞注入：首次立即返回，预热后可用', async () => {
   const { createSemantic } = await import('./semantic.js');
-  let reply = '';
+  let calls = 0;
+  const llm = {
+    stream: () => (async function* () {
+      calls += 1;
+      yield { type: 'text-delta', text: '编译\n打包' };
+    })(),
+  };
+  const ctx = {
+    get: (name) => {
+      if (name === 'llm') return llm;
+      if (name === 'agentDefaultModel') return { currentSelection: () => ({ provider: 'p', model: 'm' }) };
+      return undefined;
+    },
+  };
+  const s = createSemantic({ ctx, settingsRef: () => ({ semantic: true, semanticModel: null }) });
+  // 关键约束：首次查询必须立刻返回，不能等模型（曾阻塞 2~8 秒）
+  const started = Date.now();
+  const first = await s.expandQuery('构建失败');
+  const cost = Date.now() - started;
+  assert.equal(first, '', 'first call returns empty without blocking');
+  assert.ok(cost < 200, 'must not block on the model, took ' + cost + 'ms');
+  // 预热在后台跑，结束后同一查询命中缓存
+  await s.settle();
+  const second = await s.expandQuery('构建失败');
+  assert.ok(second !== '', 'warmed query returns expansion: ' + JSON.stringify(second));
+  assert.equal(calls, 1, 'model called exactly once for warmup');
+});
+
+await check('语义失败会被计数并在成功后清零（告警的依据）', async () => {
+  const { createSemantic } = await import('./semantic.js');
   const llm = {
     stream: () => (async function* () {
       yield { type: 'finish', reason: 'stop' };
@@ -649,13 +678,14 @@ await check('语义连续失败会被计数并在成功后清零（告警的依�
     },
   };
   const s = createSemantic({ ctx, settingsRef: () => ({ semantic: true, semanticModel: null }) });
-  // 空回复：失败被计数（节流会跳过紧邻的第二次，这本身是对的行为）
   await s.expandQuery('第一次查询');
+  await s.settle();
   assert.equal(s.snapshot().consecutiveFailures, 1, 'one attempt counted: ' + s.snapshot().consecutiveFailures);
   assert.equal(s.snapshot().lastError, 'empty-reply', 'last error recorded');
-  // 等到节流窗口过去再试一次：连续失败应继续累积（这是告警的触发条件）
+  // 等节流窗口过去再预热一次：连续失败累积（告警触发条件）
   await new Promise((resolve) => setTimeout(resolve, 900));
   await s.expandQuery('第二次查询');
+  await s.settle();
   assert.equal(s.snapshot().consecutiveFailures, 2, 'accumulates to 2: ' + s.snapshot().consecutiveFailures);
 });
 
