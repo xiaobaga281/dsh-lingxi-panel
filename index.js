@@ -13,7 +13,8 @@ import { LingxiMemory } from './memory/index.js';
 import { canonicalFailure, createInjector, userMessageText } from './injector.js';
 import { createSemantic, semanticAlert } from './semantic.js';
 import { createReviewer } from './review.js';
-import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures } from './metrics.js';
+import { MetricsFile, aggregateFailures, attachLessonEfficacy, attributeLessons, countRetiredForKey, dailySeriesByKey, dayKey, findCoverage, findPromotable, findRegressions, selectAutoActivatable, splitSceneBeforeAfter, summarizeCorrections, summarizeQuality, summarizeSceneFailures,
+  analyzeCausalExperiment } from './metrics.js';
 import { annotate } from './noise.js';
 import { mayInject } from './memory/schema.js';
 import { createEvolver, fitnessFromDelta } from './evolve.js';
@@ -52,6 +53,11 @@ export function apply(ctx, config) {
     reviewModel: null,
     // 自动复盘：默认开启，周级。记忆会持续增长，靠人记得点不现实。
     autoReview: true,
+    // 因果对照实验：随机保留一部分守卫教训不注入，用来回答
+    // "这条教训到底是保险还是内鬼"。默认关闭——它会真的少注入，
+    // 少注入就可能真的多犯错，这个代价由使用者自己决定。
+    causalExperiment: false,
+    causalHoldoutRate: 0.2,
     autoReviewDays: 7,
     // 启发式抽规则默认关闭：用户已明确它是"太片面"的方案，只留模型主动写入。
     instructions: false,
@@ -90,6 +96,10 @@ export function apply(ctx, config) {
     settings.semanticModel = bootMeta?.semanticModel ?? null;
     settings.reviewModel = bootMeta?.reviewModel ?? null;
     if (bootMeta?.autoReview !== undefined) settings.autoReview = bootMeta.autoReview !== false;
+    if (bootMeta?.causalExperiment !== undefined) settings.causalExperiment = bootMeta.causalExperiment === true;
+    if (Number.isFinite(Number(bootMeta?.causalHoldoutRate))) {
+      settings.causalHoldoutRate = Math.max(0.05, Math.min(0.3, Number(bootMeta.causalHoldoutRate)));
+    }
     if (Number.isFinite(Number(bootMeta?.autoReviewDays))) settings.autoReviewDays = Math.max(1, Math.min(90, Number(bootMeta.autoReviewDays)));
     if (bootMeta?.adoptionOverrides !== undefined) applyAdoptionOverrides(bootMeta.adoptionOverrides ?? {});
   } catch {
@@ -195,7 +205,21 @@ export function apply(ctx, config) {
   }, 6000);
 
   const reviewer = createReviewer({ ctx, settingsRef: () => settings, semantic });
-  const injector = createInjector({ memory, listWorkspace, config: settings.injection ?? {}, semantic });
+  const injector = createInjector({
+    memory,
+    listWorkspace,
+    semantic,
+    // config 用 getter：实验开关改动即时生效，不必重建注入器。
+    get config() {
+      return {
+        ...(settings.injection ?? {}),
+        causal: {
+          enabled: settings.causalExperiment === true,
+          holdoutRate: Number(settings.causalHoldoutRate) || 0,
+        },
+      };
+    },
+  });
   const evolver = createEvolver();
   /** 分场景进化器：读文件 / 命令 / 联网 / 其它 各自学预算 */
   const sceneEvolvers = {
@@ -1247,6 +1271,25 @@ export function apply(ctx, config) {
     }
   }
 
+  /** 原始质量日志明细：因果对照要逐轮的分组与计数，不能只看汇总。 */
+  async function readQualityRaw(limit = 5000) {
+    try {
+      const text = await fsp.readFile(qualityFile, 'utf8');
+      const lines = text.split('\n').filter((line) => line.trim() !== '');
+      const out = [];
+      for (const line of lines.slice(-limit)) {
+        try {
+          out.push(JSON.parse(line));
+        } catch {
+          // 单行损坏不影响其余
+        }
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+
   async function readQuality() {
     try {
       const text = await fsp.readFile(qualityFile, 'utf8');
@@ -1286,6 +1329,8 @@ export function apply(ctx, config) {
             semanticModel: settings.semanticModel ?? null,
           reviewModel: settings.reviewModel ?? null,
         autoReview: settings.autoReview === true,
+        causalExperiment: settings.causalExperiment === true,
+        causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
         autoReviewDays: Number(settings.autoReviewDays) || 7,
             reviewModel: settings.reviewModel ?? null,
         autoReview: settings.autoReview === true,
@@ -1371,6 +1416,9 @@ export function apply(ctx, config) {
         },
         attribution,
         quality: await readQuality().catch(() => null),
+        // 因果对照：只有开着实验、且对照组有样本的键才会下结论，
+        // 其余一律 insufficient / inconclusive，不把噪声包装成发现。
+        causal: analyzeCausalExperiment(await readQualityRaw().catch(() => [])),
         attributionTrend: (await readMeta()).attributionTrend ?? [],
         metrics: metrics.summary(),
         lastError,
@@ -2312,6 +2360,19 @@ export function apply(ctx, config) {
         await writeMeta({ semanticModel: settings.semanticModel });
         delete injectionPatch.semanticModel;
         }
+        if (injectionPatch.causalExperiment !== undefined) {
+          settings.causalExperiment = injectionPatch.causalExperiment === true;
+          await writeMeta({ causalExperiment: settings.causalExperiment });
+          delete injectionPatch.causalExperiment;
+        }
+        if (injectionPatch.causalHoldoutRate !== undefined) {
+          const rate = Number(injectionPatch.causalHoldoutRate);
+          settings.causalHoldoutRate = Number.isFinite(rate)
+            ? Math.max(0.05, Math.min(0.3, rate))
+            : 0.2;
+          await writeMeta({ causalHoldoutRate: settings.causalHoldoutRate });
+          delete injectionPatch.causalHoldoutRate;
+        }
         if (injectionPatch.autoReview !== undefined) {
           settings.autoReview = injectionPatch.autoReview === true;
           await writeMeta({ autoReview: settings.autoReview });
@@ -2585,6 +2646,13 @@ export function apply(ctx, config) {
       records: snapshot.records,
       toolCalls: entry.toolCalls,
       toolFailures: entry.toolErrors,
+      // 因果对照所需：本轮的实验分组 + 分工具调用数 + 按 工具|错误码 的失败数。
+      // 没有这些，只能算相关性；有了"随机保留"的样本才能谈因果。
+      byTool: entry.byTool ?? {},
+      failByKey: entry.failByKey ?? {},
+      injectedKeys: snapshot.guardKeys ?? [],
+      heldOutKeys: snapshot.heldOutKeys ?? [],
+      experimentOn: snapshot.experimentOn === true,
     }, sessionId).catch(() => {});
   });
 
@@ -2593,9 +2661,22 @@ export function apply(ctx, config) {
     try {
       const sessionId = String(exec?.agent?.id ?? '');
       if (sessionId !== '') {
-        const entry = turnStats.get(sessionId) ?? { toolCalls: 0, toolErrors: 0 };
+        const entry = turnStats.get(sessionId)
+          ?? { toolCalls: 0, toolErrors: 0, byTool: {}, failByKey: {} };
         entry.toolCalls += 1;
-        if (result?.isError === true) entry.toolErrors += 1;
+        const toolName = String(exec?.name ?? '');
+        if (toolName !== '') {
+          entry.byTool[toolName] = (entry.byTool[toolName] ?? 0) + 1;
+        }
+        if (result?.isError === true) {
+          entry.toolErrors += 1;
+          // 键必须与注入器的 guardKeyOf 完全一致，否则对照的两组对不上。
+          const code = String(result?.error?.info?.code ?? '');
+          if (toolName !== '' && code !== '') {
+            const key = toolName + '|' + code;
+            entry.failByKey[key] = (entry.failByKey[key] ?? 0) + 1;
+          }
+        }
         turnStats.set(sessionId, entry);
       }
     } catch {

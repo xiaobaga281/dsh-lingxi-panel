@@ -410,4 +410,68 @@ await check('同一载荷对象里不出现重复键（coverage 曾写两次）'
   }
   assert.equal(dup, 0, 'no duplicated coverage key in the same payload object, found ' + dup);
 });
+
+await check('因果对照：能识别有效教训，且样本不足时拒绝下结论', async () => {
+  const { analyzeCausalExperiment } = await import('./metrics.js');
+  const entries = [];
+  // A：注入时 2% 失败，保留时 20% 失败 → 教训确实有效，样本充足
+  for (let i = 0; i < 50; i += 1) {
+    entries.push({ experimentOn: true, byTool: { read: 1 }, failByKey: { 'read|FS_NOT_FOUND': i < 1 ? 1 : 0 }, injectedKeys: ['read|FS_NOT_FOUND'], heldOutKeys: [] });
+    entries.push({ experimentOn: true, byTool: { read: 1 }, failByKey: { 'read|FS_NOT_FOUND': i < 10 ? 1 : 0 }, injectedKeys: [], heldOutKeys: ['read|FS_NOT_FOUND'] });
+  }
+  // B：两组都有样本但都很少 → 必须 inconclusive（区间必然跨 0）
+  for (let i = 0; i < 2; i += 1) {
+    entries.push({ experimentOn: true, byTool: { pwsh: 1 }, failByKey: { 'pwsh|TIMEOUT': i < 1 ? 1 : 0 }, injectedKeys: ['pwsh|TIMEOUT'], heldOutKeys: [] });
+    entries.push({ experimentOn: true, byTool: { pwsh: 1 }, failByKey: {}, injectedKeys: [], heldOutKeys: ['pwsh|TIMEOUT'] });
+  }
+  // C：只有注入组、没有对照组 → insufficient（连可比基线都没有）
+  for (let i = 0; i < 5; i += 1) {
+    entries.push({ experimentOn: true, byTool: { glob: 1 }, failByKey: {}, injectedKeys: ['glob|FS_NOT_FOUND'], heldOutKeys: [] });
+  }
+  // C：没开实验的轮次不算数
+  entries.push({ experimentOn: false, byTool: { read: 1 }, failByKey: {}, injectedKeys: [], heldOutKeys: [] });
+
+  const r = analyzeCausalExperiment(entries);
+  const helping = r.rows.find((row) => row.key === 'read|FS_NOT_FOUND');
+  assert.equal(helping.verdict, 'helps', 'effective lesson detected: ' + helping.verdict);
+  assert.ok(helping.delta > 0, 'held-out arm fails more: ' + helping.delta);
+  const tiny = r.rows.find((row) => row.key === 'pwsh|TIMEOUT');
+  assert.equal(tiny.verdict, 'inconclusive', 'tiny two-arm sample must not conclude: ' + tiny.verdict);
+  assert.ok(tiny.ci.low < 0 && tiny.ci.high > 0, 'interval straddles zero: ' + JSON.stringify(tiny.ci));
+  const noControl = r.rows.find((row) => row.key === 'glob|FS_NOT_FOUND');
+  assert.equal(noControl.verdict, 'insufficient', 'no control arm → insufficient: ' + noControl.verdict);
+  assert.equal(noControl.delta, null, 'no delta without a control arm');
+  // 未开启实验的轮次不应计入
+  assert.equal(r.turns, 109, 'only experiment turns counted, got ' + r.turns);
+});
+
+await check('因果对照：区间跨 0 时不给结论（不把噪声当发现）', async () => {
+  const { analyzeCausalExperiment } = await import('./metrics.js');
+  const entries = [];
+  // 8/40 vs 2/40：看起来有差别，但 n 太小，区间跨 0 → inconclusive
+  for (let i = 0; i < 40; i += 1) {
+    entries.push({ experimentOn: true, byTool: { edit: 1 }, failByKey: { 'edit|FS_STALE_VERSION': i < 8 ? 1 : 0 }, injectedKeys: ['edit|FS_STALE_VERSION'], heldOutKeys: [] });
+    entries.push({ experimentOn: true, byTool: { edit: 1 }, failByKey: { 'edit|FS_STALE_VERSION': i < 2 ? 1 : 0 }, injectedKeys: [], heldOutKeys: ['edit|FS_STALE_VERSION'] });
+  }
+  const r = analyzeCausalExperiment(entries);
+  const row = r.rows[0];
+  assert.equal(row.verdict, 'inconclusive', 'must not conclude from weak evidence: ' + row.verdict);
+  assert.ok(row.ci.low < 0 && row.ci.high > 0, 'interval straddles zero: ' + JSON.stringify(row.ci));
+});
+
+await check('因果对照：空输入不崩，且只抽守卫教训', async () => {
+  const { analyzeCausalExperiment } = await import('./metrics.js');
+  const empty = analyzeCausalExperiment([]);
+  assert.equal(empty.keys, 0);
+  assert.equal(empty.turns, 0);
+  const g = await import('./injector.js');
+  // 守卫教训 = 带工具与错误码的 lesson
+  assert.equal(g.guardKeyOf({ kind: 'lesson', meta: { tool: 'read', code: 'FS_NOT_FOUND' } }), 'read|FS_NOT_FOUND');
+  assert.equal(g.guardKeyOf({ kind: 'lesson', meta: {} }), null, 'no tool/code → not a guard');
+  assert.equal(g.guardKeyOf({ kind: 'preference', meta: { tool: 'read', code: 'X' } }), null, 'non-lesson never sampled');
+  // 用户意志永不参与对照
+  assert.equal(g.neverHoldOut({ kind: 'constraint' }), true);
+  assert.equal(g.neverHoldOut({ kind: 'preference' }), true);
+  assert.equal(g.neverHoldOut({ kind: 'lesson' }), false);
+});
 report();

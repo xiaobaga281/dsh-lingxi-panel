@@ -24,6 +24,30 @@ const CORRECTION = /(不要|别再用|不对|错了|我说了|重做|重新做|�
  * 失败文本规范化：抹掉路径、数字、引号内容等易变部分，得到"同一场景"的稳定键。
  * 否则每次报错都带不同行号/路径，会沉淀成一堆近似但不同的教训。
  */
+/**
+ * 守卫教训的键：`工具|错误码`。只有这种"针对具体失败"的教训才参与因果对照，
+ * 因为它的效果可以被证伪——注入后同类失败是否减少。
+ * 返回 null 表示这不是守卫教训（普通知识、流程、偏好等），不参与抽样。
+ */
+export function guardKeyOf(record) {
+  const meta = record?.meta ?? {};
+  if (String(record?.kind ?? '') !== 'lesson') return null;
+  const tool = String(meta.tool ?? '');
+  const code = String(meta.code ?? '');
+  if (tool === '' || code === '') return null;
+  return tool + '|' + code;
+}
+
+/**
+ * 永不可抽取的记录：表达的是**用户的意志**（约束/偏好/用户准则），
+ * 不是可被统计证伪的知识。实验只针对守卫教训，绝不拿这些做对照。
+ */
+export function neverHoldOut(record) {
+  const kind = String(record?.kind ?? '');
+  if (kind === 'constraint' || kind === 'preference') return true;
+  return false;
+}
+
 export function canonicalFailure(text) {
   let value = String(text ?? '');
   value = value.replace(/[A-Za-z]:\\[^\s，。；;、）)]+/g, '<path>');
@@ -369,10 +393,36 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
           : '';
         const fullBudget = budgetFor(dominantScene(sessionId));
         const bodyBudget = Math.max(120, fullBudget - HEADER.length - footer.length - 2);
-        const fitted = buildRecallTextWithin(usable, bodyBudget);
+        // 因果对照实验（默认关闭）：随机保留一部分**守卫教训**不注入。
+        // 没有"该注入却没注入"的样本，就只能观察到相关性——
+        // 永远无法回答"这条教训到底是保险，还是过时的内鬼"。
+        // 代价：被保留的那些轮次，同类失败可能会真实发生。所以默认关闭，
+        // 且只抽守卫教训——约束/偏好/用户准则永不参与。
+        const experiment = config?.causal ?? {};
+        const holdoutRate = Math.max(0, Math.min(0.3, Number(experiment.holdoutRate) || 0));
+        const experimentOn = experiment.enabled === true && holdoutRate > 0;
+        let pool = usable;
+        const heldOutKeys = [];
+        if (experimentOn) {
+          pool = [];
+          for (const item of usable) {
+            const key = guardKeyOf(item.record);
+            const skippable = key !== null && !neverHoldOut(item.record);
+            if (skippable && Math.random() < holdoutRate) {
+              heldOutKeys.push(key);
+              continue;
+            }
+            pool.push(item);
+          }
+        }
+        const fitted = buildRecallTextWithin(pool, bodyBudget);
         const block = fitted.text === '' ? '' : HEADER + '\n' + fitted.text + footer;
         entry.text = block === '' ? '' : block + footer;
         entry.ids = fitted.items.map((item) => item.record.id);
+        // 供因果对照：本轮实际注入了哪些守卫键、保留了哪些。
+        entry.guardKeys = fitted.items.map((item) => guardKeyOf(item.record)).filter((k) => k !== null);
+        entry.heldOutKeys = heldOutKeys;
+        entry.experimentOn = experimentOn;
         // 曝光登记：被注入过几次（用于相关命中率，不改置信度）。
         if (typeof memory.noteExposure === 'function') {
           memory.noteExposure(fitted.items.map((item) => item.record.id)).catch(() => {});
@@ -810,7 +860,12 @@ export function createInjector({ memory, listWorkspace, now = () => Date.now(), 
   /** 会话级快照：注入字数与记录数（供按轮质量记录）。 */
   function sessionSnapshot(sessionId) {
     const entry = sessionStats.get(String(sessionId ?? ''));
-    if (entry === undefined) return { injectedChars: 0, records: 0, toolCalls: 0, toolFailures: 0 };
+    if (entry === undefined) {
+      return {
+        injectedChars: 0, records: 0, toolCalls: 0, toolFailures: 0,
+        guardKeys: [], heldOutKeys: [], experimentOn: false,
+      };
+    }
     return { ...entry };
   }
 

@@ -160,6 +160,99 @@ export function attributeLessons({ failures = [], lessons = [], now = Date.now()
  * 按会话记录"是否注入了非空记忆块"、工具调用数与失败数，
  * 再比较两组会话的失败率。样本少时会如实标出 sessions 数量。
  */
+/**
+ * 因果对照分析：注入某条守卫教训，是否真的降低了该 (工具, 错误码) 的失败率？
+ *
+ * 为什么必须随机保留：只统计"注入了还失败"的样本，永远分不清
+ *   - 教训无效（内鬼），还是
+ *   - 这个场景本来就容易失败（教训其实挡住了更多失败）。
+ * 只有"该注入却被随机保留"的对照组，才能给出可比的基线。
+ *
+ * 单位是**工具调用**而不是轮次：分母取该工具在本轮的调用次数，
+ * 分子取该 工具|错误码 在本轮的失败次数。这样两组的分母可比。
+ *
+ * 诚实说明：样本量小的时候置信区间会很宽，结论只能是"暂无定论"。
+ * 这里如实返回区间与样本量，不把噪声包装成结论。
+ */
+export function analyzeCausalExperiment(entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  /** key → { injCalls, injFails, holdCalls, holdFails } */
+  const byKey = new Map();
+  let usedTurns = 0;
+  for (const entry of list) {
+    if (entry?.experimentOn !== true) continue;
+    usedTurns += 1;
+    const byTool = entry.byTool ?? {};
+    const failByKey = entry.failByKey ?? {};
+    const injected = new Set(Array.isArray(entry.injectedKeys) ? entry.injectedKeys : []);
+    const heldOut = new Set(Array.isArray(entry.heldOutKeys) ? entry.heldOutKeys : []);
+    for (const key of new Set([...injected, ...heldOut])) {
+      const tool = String(key).split('|')[0];
+      const calls = Math.max(0, Number(byTool[tool]) || 0);
+      const fails = Math.max(0, Number(failByKey[key]) || 0);
+      const row = byKey.get(key) ?? { injCalls: 0, injFails: 0, holdCalls: 0, holdFails: 0 };
+      if (injected.has(key)) {
+        row.injCalls += calls;
+        row.injFails += fails;
+      } else {
+        row.holdCalls += calls;
+        row.holdFails += fails;
+      }
+      byKey.set(key, row);
+    }
+  }
+
+  const wilson = (fails, calls) => {
+    if (calls <= 0) return null;
+    const n = calls;
+    const p = fails / n;
+    const z = 1.96;
+    const denom = 1 + (z * z) / n;
+    const centre = (p + (z * z) / (2 * n)) / denom;
+    const margin = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
+    return { low: Math.max(0, centre - margin), high: Math.min(1, centre + margin) };
+  };
+
+  const rows = [];
+  for (const [key, row] of byKey) {
+    // 两组都要有样本才谈得上对照
+    if (row.injCalls <= 0 || row.holdCalls <= 0) {
+      rows.push({
+        key,
+        ...row,
+        injRate: row.injCalls > 0 ? row.injFails / row.injCalls : null,
+        holdRate: row.holdCalls > 0 ? row.holdFails / row.holdCalls : null,
+        delta: null,
+        ci: null,
+        verdict: 'insufficient',
+      });
+      continue;
+    }
+    const injRate = row.injFails / row.injCalls;
+    const holdRate = row.holdFails / row.holdCalls;
+    const delta = holdRate - injRate; // >0 表示"不注入时更容易失败"= 教训有效
+    const a = wilson(row.injFails, row.injCalls);
+    const b = wilson(row.holdFails, row.holdCalls);
+    const ci = { low: delta - ((b.high - b.low) + (a.high - a.low)) / 2, high: delta + ((b.high - b.low) + (a.high - a.low)) / 2 };
+    // 区间跨 0 就不下结论——这是统计纪律，不是保守。
+    let verdict = 'inconclusive';
+    if (ci.low > 0) verdict = 'helps';
+    else if (ci.high < 0) verdict = 'hurts';
+    rows.push({ key, ...row, injRate, holdRate, delta, ci, verdict });
+  }
+  rows.sort((x, y) => Math.abs(y.delta ?? 0) - Math.abs(x.delta ?? 0));
+
+  const helping = rows.filter((r) => r.verdict === 'helps').length;
+  const hurting = rows.filter((r) => r.verdict === 'hurts').length;
+  const inconclusive = rows.filter((r) => r.verdict === 'inconclusive').length;
+  const insufficient = rows.filter((r) => r.verdict === 'insufficient').length;
+  return {
+    turns: usedTurns,
+    keys: rows.length,
+    rows,
+    summary: { helping, hurting, inconclusive, insufficient },
+  };
+}
 export function summarizeQuality(entries) {
   const list = Array.isArray(entries) ? entries.filter((entry) => entry !== null && entry !== undefined) : [];
   const groups = {
