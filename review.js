@@ -40,7 +40,7 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
    * @param {Array<{id,text,kind}>} items 最多 20 条
    * @returns {Promise<{ok:boolean, verdicts:Array, error:string}>}
    */
-  async function review(items, { batchSize = 12, onProgress } = {}) {
+  async function review(items, { batchSize = 6, onProgress } = {}) {
     const list = (Array.isArray(items) ? items : [])
       .filter((item) => item !== null && typeof item === 'object' && String(item.text ?? '') !== '')
       .slice(0, 60);
@@ -66,9 +66,11 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
         }
       }
       const raw = await semantic.completeRaw(REVIEW_SYSTEM, prompt, {
-        maxTokens: 1200,
+        // 6 条记忆的裁决 JSON 通常 600~1200 tokens；给足够余量避免截断。
+        maxTokens: 3000,
         kind: 'review',
         requireEnabled: false,
+        timeoutMs: 45000,
       });
       if (raw === '') {
         errors.push('empty-reply@' + offset);
@@ -111,19 +113,35 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
     const text = String(raw ?? '');
     const start = text.indexOf('[');
     const end = text.lastIndexOf(']');
-    if (start < 0 || end <= start) return [];
-    const slice = text.slice(start, end + 1);
-    try {
-      const parsed = JSON.parse(slice);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      // 常见脏数据：尾逗号
+    // 1) 整体解析优先
+    if (start >= 0 && end > start) {
+      const slice = text.slice(start, end + 1);
       try {
-        return JSON.parse(slice.replace(/,\s*([\]}])/g, '$1'));
+        const parsed = JSON.parse(slice);
+        if (Array.isArray(parsed)) return parsed;
       } catch {
-        return [];
+        try {
+          const parsed = JSON.parse(slice.replace(/,\s*([\]}])/g, '$1'));
+          if (Array.isArray(parsed)) return parsed;
+        } catch {
+          // 落到下面兜底
+        }
       }
     }
+    // 2) 兜底：逐个大括号对象抽取。
+    // 模型输出被长度上限截断时，数组尾部是残缺的，但前面完整的对象仍然可用——
+    // 直接丢弃整批会让已成功的那几条建议白费。
+    const out = [];
+    const matches = text.match(/\{[^{}]*\}/g) ?? [];
+    for (const chunk of matches) {
+      try {
+        const obj = JSON.parse(chunk);
+        if (obj !== null && typeof obj === 'object' && typeof obj.id === 'string' && obj.id !== '') out.push(obj);
+      } catch {
+        // 残缺对象跳过
+      }
+    }
+    return out;
   }
 
   return { review };

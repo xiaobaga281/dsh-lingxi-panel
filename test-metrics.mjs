@@ -388,5 +388,36 @@ await check('按 key 的每日趋势：缺数据天补 0', async () => {
   assert.equal(out[0].points[2].count, 2);
   assert.equal(out[0].values ?? out[0].total, 3);
 });
+
+await check('载荷字段位置：客户端读路径必须与后端写入位置一致', async () => {
+  const fs = await import('node:fs');
+  const server = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const client = fs.readFileSync(new URL('./client.js', import.meta.url), 'utf8');
+  // 客户端读 efficacy.lessonEfficacy / efficacy.regressions：
+  // 后端若把它们放在 efficacy 同级，界面就永远显示为空（真实发生过）。
+  assert.ok(client.includes('efficacy?.lessonEfficacy'), 'client reads efficacy.lessonEfficacy');
+  const idx = server.indexOf('lessonEfficacy,');
+  assert.ok(idx > 0, 'server writes lessonEfficacy');
+  // 它必须出现在 efficacy: { ... } 块内：往回找最近的 "efficacy: {" 比最近的对象收尾更近
+  const before = server.slice(Math.max(0, idx - 2000), idx);
+  const lastEfficacyOpen = before.lastIndexOf('efficacy: {');
+  // 该字段前不应已经出现过与 efficacy 平级的 attribution,
+  const seg = before.slice(lastEfficacyOpen);
+  assert.equal(seg.includes('attribution,'), false, 'lessonEfficacy must sit inside the efficacy block, before attribution');
+});
+
+await check('同一载荷对象里不出现重复键（coverage 曾写两次）', async () => {
+  const fs = await import('node:fs');
+  const server = fs.readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const lines = server.split('\n');
+  let dup = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!lines[i].includes('coverage: efficacy.coverage ?? null,')) continue;
+    for (let j = i + 1; j <= Math.min(i + 8, lines.length - 1); j += 1) {
+      if (lines[j].includes('coverage: efficacy.coverage ?? null,')) { dup += 1; break; }
+    }
+  }
+  assert.equal(dup, 0, 'no duplicated coverage key in the same payload object, found ' + dup);
+});
 console.log(checks.join('\n'));
 console.log(`\n通过 ${checks.length} 项`);

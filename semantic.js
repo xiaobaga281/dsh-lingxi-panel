@@ -122,7 +122,7 @@ export function createSemantic({ ctx, settingsRef }) {
   }
 
   /** 用 llm.stream 发一次补全；带硬超时，失败返回空串 */
-  async function complete(system, user, { maxTokens = 200, kind = 'semantic' } = {}) {
+  async function complete(system, user, { maxTokens = 200, kind = 'semantic', timeoutMs = CALL_TIMEOUT } = {}) {
     const bag = statsFor(kind);
     const model = await currentModel(kind);
     if (model === null) {
@@ -168,7 +168,7 @@ export function createSemantic({ ctx, settingsRef }) {
       } catch {
         // 忽略
       }
-    }, CALL_TIMEOUT);
+    }, timeoutMs);
 
     try {
       // 严格按 harness 的 GenerateOptions：
@@ -203,7 +203,7 @@ export function createSemantic({ ctx, settingsRef }) {
         } else if (chunk?.type === undefined && typeof chunk?.text === 'string') {
           text += chunk.text;
         }
-        if (Date.now() - started > CALL_TIMEOUT) {
+        if (Date.now() - started > timeoutMs) {
           bag.timeout += 1;
           bag.lastError = 'timeout';
           break;
@@ -370,12 +370,16 @@ export function createSemantic({ ctx, settingsRef }) {
    * 原始补全：给复盘这类需要自定义提示词的场景用。
    * 与 expandQuery 共享模型解析、超时与统计，但不做关键词解析。
    */
-  async function completeRaw(system, user, { maxTokens = 600, kind = 'semantic', requireEnabled = true } = {}) {
+  async function completeRaw(system, user, { maxTokens = 600, kind = 'semantic', requireEnabled = true, timeoutMs } = {}) {
     // 复盘是手动触发的独立任务：不受"语义召回开关"约束，
     // 但它有自己的模型选择（reviewModel）。
     if (requireEnabled && !enabled()) return '';
     if (!canCallNow()) return '';
-    return complete(system, String(user ?? ''), { maxTokens, kind });
+    return complete(system, String(user ?? ''), {
+      maxTokens,
+      kind,
+      ...(Number.isFinite(timeoutMs) ? { timeoutMs } : {}),
+    });
   }
 
   /**

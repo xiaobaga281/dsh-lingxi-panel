@@ -1539,13 +1539,14 @@ export function apply(ctx, config) {
             coverage: efficacy.coverage ?? null,
                   crossSession: Array.isArray(efficacy.crossSession) ? efficacy.crossSession.slice(0, 10) : [],
                   scenes: Array.isArray(efficacy.scenes) ? efficacy.scenes : [],
-                  coverage: efficacy.coverage ?? null,
                   trend: Array.isArray(efficacy.trend) ? efficacy.trend : [],
+          // 教训疗效必须在 efficacy 内部：客户端读的是 efficacy.lessonEfficacy，
+          // 放在同级会让「教训疗效」表永远为空。
+          lessonEfficacy,
+          regressions: findRegressions(lessonEfficacy),
                 },
             attribution,
             attributionTrend: trendSafe,
-            lessonEfficacy,
-            regressions: findRegressions(lessonEfficacy),
             promotable,
             metrics: metrics.summary(),
             error: efficacyError,

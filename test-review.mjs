@@ -178,6 +178,35 @@ await checkAsync('复盘响应信封不被覆盖：state 里不能再有 ok 字�
   assert.equal(okKeys.length, 0, 'projection must not define an ok key, found ' + okKeys.length);
   assert.ok(body.includes('success:'), 'projection exposes success instead');
 });
+
+await checkAsync('截断的响应也能救出完整对象（实测模型被长度上限截断过）', async () => {
+  const { createReviewer } = await import('./review.js');
+  // 尾部残缺：最后一个对象的 reason 被截断，前面的对象完整
+  const truncated = '[{"id":"a","verdict":"keep","reason":"ok"},{"id":"b","verdict":"drop","reason":"无用"},{"id":"c","verdict":"reclass","kind":"constraint","reason":"这是用户要';
+  const r = createReviewer({
+    ctx: null,
+    settingsRef: () => ({ semantic: true }),
+    semantic: { completeRaw: async () => truncated },
+  });
+  const out = await r.review([{ id: 'a', kind: 'lesson', text: 'x' }, { id: 'b', kind: 'skill', text: 'y' }, { id: 'c', kind: 'lesson', text: 'z' }]);
+  assert.equal(out.verdicts.length, 2, 'salvaged the two complete objects: ' + JSON.stringify(out.verdicts));
+  assert.equal(out.verdicts[0].id, 'a');
+  assert.equal(out.verdicts[1].id, 'b');
+  assert.equal(out.verdicts[1].verdict, 'drop');
+});
+
+await checkAsync('批次足够小，单次请求不会要求过多输出', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./review.js', import.meta.url), 'utf8');
+  const m = /batchSize = (\d+)/.exec(src);
+  assert.ok(m !== null, 'batchSize is declared');
+  const size = Number(m[1]);
+  assert.ok(size > 0 && size <= 8, 'batchSize must stay small enough to fit the output budget, got ' + size);
+  const tokens = /maxTokens: (\d+)/.exec(src);
+  assert.ok(tokens !== null && Number(tokens[1]) >= 2000, 'maxTokens must leave room for a full batch, got ' + (tokens === null ? 'none' : tokens[1]));
+  const timeout = /timeoutMs: (\d+)/.exec(src);
+  assert.ok(timeout !== null && Number(timeout[1]) >= 20000, 'review needs a longer timeout than keyword expansion, got ' + (timeout === null ? 'none' : timeout[1]));
+});
 console.log(checks.join('\n'));
 const failed = checks.filter((line) => line.includes('FAIL')).length;
 console.log(failed === 0 ? '通过 ' + checks.length + ' 项' : '失败 ' + failed + ' 项');
