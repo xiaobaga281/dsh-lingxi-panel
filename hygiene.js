@@ -90,6 +90,30 @@ const SPECIFIC_MARKERS = [
   /(?:^|[^A-Za-z0-9_])(gpt|claude|deepseek|glm|qwen|spark|trae|loom)[\w.-]*/i,
 ];
 
+/**
+ * 用户教的行为准则：触发条件发生在**用户身上**，而不是某个工具或环境。
+ *
+ * 例：「当用户纠正时：先停下确认…」「当用户重问同一件事时：先复述约束…」。
+ * 这类记忆表达的是**用户的意志**，不是模型能自己推导的常识。
+ *
+ * 为什么按内容而不是按 kind 识别：kind 会随分类调整而变（比如被模型判为 skill），
+ * 但"这是用户教的"这一事实不变。保护若挂在 kind 上，就会出现
+ * "类型改对了、记录却被下沉"的矛盾。
+ */
+const USER_RULE_PATTERNS = [
+  /^当用户/,
+  /当?用户(纠正|重问|指出|要求|强调|明确|说过|提到|否认|不满)/,
+  /^(回答|回复|应对)用户/,
+];
+const USER_RULE_SOURCES = /(user-instruction|correction)/;
+
+export function isUserRule(record) {
+  const source = String((record?.provenance ?? [])[0]?.source ?? '');
+  if (USER_RULE_SOURCES.test(source)) return true;
+  const text = String(record?.text ?? '');
+  return USER_RULE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /* 通用做法标记：纯工具序列、通用建议用语。 */
 const GENERIC_PATTERNS = [
   /(流程|步骤)[^：:]{0,12}[：:]\s*[\w_]+\s*(→|->)\s*[\w_]+/,
@@ -102,25 +126,24 @@ export function scarcityOf(record) {
   const kind = String(record?.kind ?? '');
   if (text === '') return 0.85;
 
-  // 约束与偏好是"用户教我"的：它们表达的是**你的要求**，不是模型能自己推导的常识。
-  // 所以无论措辞多通用，都不判为可推导——这是用户的意志，不是知识密度问题。
-  if (kind === 'constraint' || kind === 'preference') {
-    let ownSpecific = 0;
-    for (const pattern of SPECIFIC_MARKERS) {
-      if (pattern.test(text)) ownSpecific += 1;
-    }
-    if (ownSpecific >= 3) return 1.15;
-    if (ownSpecific === 2) return 1.08;
-    // 至少保持在基准线，绝不因为"看着像常识"而下沉
+  let specific = 0;
+  for (const pattern of SPECIFIC_MARKERS) {
+    if (pattern.test(text)) specific += 1;
+  }
+
+  // 受保护的记忆：表达的是**用户的意志**，不是知识密度。
+  //   - 约束 / 偏好：用户的明确要求；
+  //   - 用户准则：触发条件发生在用户身上（按内容识别，与 kind 无关）。
+  // 两者都至少保持基准线，绝不因为"看着像常识"而下沉。
+  const isUserWill = kind === 'constraint' || kind === 'preference' || isUserRule(record);
+  if (isUserWill) {
+    if (specific >= 3) return 1.15;
+    if (specific === 2) return 1.08;
     return 1.0;
   }
 
   // 具体知识优先：只要含路径/错误码/配置名/模型名，就是模型不一定知道的东西，
   // 不该因为句子里有"先确认"这类通用词就被下沉。
-  let specific = 0;
-  for (const pattern of SPECIFIC_MARKERS) {
-    if (pattern.test(text)) specific += 1;
-  }
   if (specific >= 3) return 1.15;
   if (specific === 2) return 1.08;
   if (specific === 1) return 1.0;
@@ -141,6 +164,8 @@ export function scarcityOf(record) {
 export function isDerivable(record) {
   const kind = String(record?.kind ?? '');
   if (kind === 'constraint' || kind === 'preference') return false;
+  // 用户准则同样永不判为"模型本来就会"——哪怕它被归为 skill。
+  if (isUserRule(record)) return false;
   return scarcityOf(record) <= 0.55;
 }
 

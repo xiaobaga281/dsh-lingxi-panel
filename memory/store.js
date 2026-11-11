@@ -241,6 +241,7 @@ export class MemoryStore {
    * 改类型（kind）。复盘会据此纠正被误分类的记录：
    * 例如"纠正时该怎么做"本属约束，却被自动抽取标成了 lesson。
    */
+  /** 改类型。**原地修改**内部记录并返回同一个对象（调用方如需前后对比请自行拷贝）。 */
   async patchKind(id, kind) {
     await this.load();
     const record = this.records.get(String(id));
@@ -743,6 +744,13 @@ export class MemoryStore {
     return { items: visible.slice(0, limit), total: visible.length, blocked, blockedReasons };
   }
 
+  /**
+   * 按条件列出记录。
+   *
+   * 注意：返回的是**内部记录对象本身**（不是副本），并且已按有效置信度排序。
+   * 只读使用没问题；若要"先取值、再改动、然后比较前后差异"，
+   * 必须自己先深拷贝一份——否则 before 与内部对象是同一个引用，比较会误判。
+   */
   list({ kind, status, scope, limit = 50 } = {}) {
     let list = [...this.records.values()];
     if (kind !== undefined) list = list.filter((record) => record.kind === kind);

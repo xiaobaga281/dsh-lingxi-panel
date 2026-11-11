@@ -217,4 +217,23 @@ await check('约束与偏好永不判为可推导（那是用户的意志，不�
   // 约束即使含错误码也只是更高，不会下沉
   assert.ok(scarcityOf({ text: '遇到 FS_NOT_FOUND 必须先 glob 确认', kind: 'constraint' }) >= 1.0, 'coded constraint');
 });
+
+await check('用户准则不因分类调整而下沉（保护按语义而非 kind）', async () => {
+  const { scarcityOf, isDerivable, isUserRule } = await import('./hygiene.js');
+  // 背景：模型复盘可能把"当用户纠正时：先停下确认…"这类用户教的行为准则判为 skill。
+  // 若保护挂在 kind 上，改成 skill 就会被当"模型本来就会做"下沉——
+  // 与"用户的意志不该被推导掉"直接冲突。保护必须按内容识别。
+  const userRule = '当用户纠正时：先停下当前动作，确认他指的是哪一处、期望是什么，再改一处并回报结果';
+  for (const kind of ['preference', 'constraint', 'skill', 'lesson']) {
+    const record = { text: userRule, kind };
+    assert.equal(isUserRule(record), true, 'recognized as a user rule: ' + kind);
+    assert.ok(scarcityOf(record) >= 1.0, 'never sinks regardless of kind=' + kind + ' got ' + scarcityOf(record));
+    assert.equal(isDerivable(record), false, 'never derivable regardless of kind=' + kind);
+  }
+  assert.equal(isUserRule({ text: '当用户重问同一件事时：先复述他的关键约束与期望，再给结论' }), true);
+  // 反向：通用流程仍应下沉，保护不能扩大化
+  const genericSkill = { text: '改写流程（5 步）：write → pwsh → write → pwsh → write', kind: 'skill' };
+  assert.equal(isUserRule(genericSkill), false, 'generic tool sequence is not a user rule');
+  assert.ok(scarcityOf(genericSkill) <= 0.55, 'generic sequence still sinks, got ' + scarcityOf(genericSkill));
+});
 report();
