@@ -49,6 +49,7 @@ export function apply(ctx, config) {
     autoSeedThreshold: 10,
     procedureSessions: 2,
     semantic: false,
+    reviewModel: null,
     // 启发式抽规则默认关闭：用户已明确它是"太片面"的方案，只留模型主动写入。
     instructions: false,
     evolve: true,
@@ -84,6 +85,7 @@ export function apply(ctx, config) {
     const bootMeta = JSON.parse(readFileSync(path.join(memoryDir, '.meta.json'), 'utf8'));
     if (bootMeta?.semantic !== undefined) settings.semantic = bootMeta.semantic === true;
     settings.semanticModel = bootMeta?.semanticModel ?? null;
+    settings.reviewModel = bootMeta?.reviewModel ?? null;
     if (bootMeta?.adoptionOverrides !== undefined) applyAdoptionOverrides(bootMeta.adoptionOverrides ?? {});
   } catch {
     // meta 暂不存在（首次运行）就按默认
@@ -191,6 +193,7 @@ export function apply(ctx, config) {
   let lastSemanticOptions = null;
   let lastSemanticProbe = null;
   let lastReview = null;
+  let lastReviewModel = null;
   let alerts = [];
   let lastAudit = null;
   let autoActivated = 0;
@@ -1178,6 +1181,8 @@ export function apply(ctx, config) {
             // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
+          reviewModel: settings.reviewModel ?? null,
+            reviewModel: settings.reviewModel ?? null,
           },
         evolution,
         scenes: injector.sceneSnapshot(),
@@ -1241,8 +1246,9 @@ export function apply(ctx, config) {
         semanticStats: semantic.snapshot(),
         semanticProbe: lastSemanticProbe,
         review: lastReview,
-        semanticProbe: lastSemanticProbe,
-        review: lastReview,
+        reviewModel: settings.reviewModel ?? null,
+        reviewModelUsed: lastReviewModel,
+        reviewStats: semantic.reviewSnapshot(),
         audit: lastAudit,
         alerts,
         gapFilled,
@@ -1478,6 +1484,8 @@ export function apply(ctx, config) {
             // 语义召回的权威状态（持久化在 meta，面板开关/下拉据此回填）
             semantic: settings.semantic === true,
             semanticModel: settings.semanticModel ?? null,
+          reviewModel: settings.reviewModel ?? null,
+            reviewModel: settings.reviewModel ?? null,
           },
           search: { ...searchStats },
           storage: { dir: memoryDir, pointer: readStoragePointer() },
@@ -1485,11 +1493,11 @@ export function apply(ctx, config) {
           selfcheck,
           semanticOptions: lastSemanticOptions,
           semanticStats: semantic.snapshot(),
-        semanticProbe: lastSemanticProbe,
-        review: lastReview,
-        semanticStats: semantic.snapshot(),
-        semanticProbe: lastSemanticProbe,
-        review: lastReview,
+          semanticProbe: lastSemanticProbe,
+          review: lastReview,
+          reviewModel: settings.reviewModel ?? null,
+          reviewModelUsed: lastReviewModel,
+          reviewStats: semantic.reviewSnapshot(),
           audit: lastAudit,
           alerts,
           evolution,
@@ -1966,8 +1974,11 @@ export function apply(ctx, config) {
         if (!allowGetPost(request, response)) return;
         try {
           await ensureMemory();
-          if (settings.semantic !== true) {
-            sendJson(response, 200, { ok: false, error: 'semantic-disabled' });
+          // 复盘不依赖"语义召回开关"：那是两个任务。
+          // 它只需要一个可用的模型（reviewModel，未选则跟随默认）。
+          const reviewModel = await semantic.currentModel('review');
+          if (reviewModel === null) {
+            sendJson(response, 200, { ok: false, error: 'no-model' });
             return;
           }
           const records = await memory.list({ limit: 200 });
@@ -1986,7 +1997,8 @@ export function apply(ctx, config) {
             };
           });
           lastReview = { at: Date.now(), suggestions, error: outcome.error };
-          sendJson(response, 200, { ok: outcome.ok, suggestions, error: outcome.error, scanned: items.length });
+          lastReviewModel = reviewModel;
+          sendJson(response, 200, { ok: outcome.ok, suggestions, error: outcome.error, scanned: items.length, model: reviewModel });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
@@ -2133,7 +2145,7 @@ export function apply(ctx, config) {
           }
         }
         lastSemanticOptions = withModels;
-        sendJson(response, 200, { ok: true, current, providers: withModels, source: fromConfig.length > 0 ? 'config' : 'runtime', saved: settings.semanticModel ?? null });
+        sendJson(response, 200, { ok: true, current, providers: withModels, source: fromConfig.length > 0 ? 'config' : 'runtime', saved: settings.semanticModel ?? null, savedReview: settings.reviewModel ?? null });
         } catch (error) {
           sendJson(response, 200, { ok: false, error: errorMessage(error) });
         }
@@ -2166,6 +2178,13 @@ export function apply(ctx, config) {
         settings.semanticModel = valid ? { provider: picked.provider, model: picked.model } : null;
         await writeMeta({ semanticModel: settings.semanticModel });
         delete injectionPatch.semanticModel;
+        }
+        if (injectionPatch.reviewModel !== undefined) {
+        const pickedReview = injectionPatch.reviewModel ?? null;
+        const reviewValid = pickedReview !== null && typeof pickedReview === 'object' && typeof pickedReview.provider === 'string' && pickedReview.provider !== '' && typeof pickedReview.model === 'string' && pickedReview.model !== '';
+        settings.reviewModel = reviewValid ? { provider: pickedReview.provider, model: pickedReview.model } : null;
+        await writeMeta({ reviewModel: settings.reviewModel });
+        delete injectionPatch.reviewModel;
         }
     const next = injector.configure(injectionPatch);
         await writeMeta({ injection: next });

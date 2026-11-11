@@ -62,15 +62,48 @@ export function createSemantic({ ctx, settingsRef }) {
     lastAt: 0,
   };
 
+  /**
+   * 复盘用独立统计。
+   * 为什么必须分开：复盘失败不该触发"语义召回不可用"告警——
+   * 两者是不同任务，用不同的模型，也会各自失败。
+   */
+  const reviewStats = {
+    calls: 0,
+    ok: 0,
+    failed: 0,
+    timeout: 0,
+    skippedThrottle: 0,
+    expandedQueries: 0,
+    keywordRuns: 0,
+    usedReasoning: 0,
+    consecutiveFailures: 0,
+    lastFailAt: 0,
+    consolidations: 0,
+    consolidated: 0,
+    lastLatencyMs: 0,
+    lastModel: '',
+    lastExpansion: '',
+    lastError: '',
+    lastText: '',
+    lastAt: 0,
+  };
+
+  const statsFor = (kind) => (kind === 'review' ? reviewStats : stats);
+
   const enabled = () => {
     const s = settingsRef();
     return s !== undefined && s !== null && (s?.semantic ?? false) === true;
   };
 
-  /** 实时解析当前模型配置（不缓存） */
-  async function currentModel() {
+  /**
+   * 实时解析当前模型配置（不缓存）。
+   * kind='semantic' 读 semanticModel，kind='review' 读 reviewModel；
+   * 两者都未选时各自跟随宿主默认模型。
+   */
+  async function currentModel(kind = 'semantic') {
     try {
-      const picked = settingsRef()?.semanticModel ?? null;
+      const key = kind === 'review' ? 'reviewModel' : 'semanticModel';
+      const picked = settingsRef()?.[key] ?? null;
       if (picked !== null
         && typeof picked.provider === 'string' && picked.provider !== ''
         && typeof picked.model === 'string' && picked.model !== '') {
@@ -89,21 +122,22 @@ export function createSemantic({ ctx, settingsRef }) {
   }
 
   /** 用 llm.stream 发一次补全；带硬超时，失败返回空串 */
-  async function complete(system, user, { maxTokens = 200 } = {}) {
-    const model = await currentModel();
+  async function complete(system, user, { maxTokens = 200, kind = 'semantic' } = {}) {
+    const bag = statsFor(kind);
+    const model = await currentModel(kind);
     if (model === null) {
-      stats.failed += 1;
-      stats.consecutiveFailures += 1;
-      stats.lastFailAt = Date.now();
-      stats.lastError = 'no-model';
+      bag.failed += 1;
+      bag.consecutiveFailures += 1;
+      bag.lastFailAt = Date.now();
+      bag.lastError = 'no-model';
       return '';
     }
     const llm = ctx?.get?.('llm');
     if (llm === undefined || typeof llm.stream !== 'function') {
-      stats.failed += 1;
-      stats.consecutiveFailures += 1;
-      stats.lastFailAt = Date.now();
-      stats.lastError = 'no-llm-service';
+      bag.failed += 1;
+      bag.consecutiveFailures += 1;
+      bag.lastFailAt = Date.now();
+      bag.lastError = 'no-llm-service';
       return '';
     }
     // 配置可能已被改掉：provider 不再注册时给出准确原因，
@@ -112,20 +146,20 @@ export function createSemantic({ ctx, settingsRef }) {
       const known = llm.listProviders?.() ?? [];
       const ids = (Array.isArray(known) ? known : []).map((entry) => String(entry?.id ?? '')).filter((id) => id !== '');
       if (ids.length > 0 && !ids.includes(model.provider)) {
-        stats.failed += 1;
-        stats.consecutiveFailures += 1;
-        stats.lastFailAt = Date.now();
-        stats.lastError = 'provider-not-registered:' + model.provider;
+        bag.failed += 1;
+        bag.consecutiveFailures += 1;
+        bag.lastFailAt = Date.now();
+        bag.lastError = 'provider-not-registered:' + model.provider;
         return '';
       }
     } catch {
       // 列表拿不到就照常尝试
     }
     const started = Date.now();
-    stats.calls += 1;
-    stats.lastModel = model.provider + '/' + model.model;
-    stats.lastModelSource = String(model.source ?? '');
-    stats.lastAt = started;
+    bag.calls += 1;
+    bag.lastModel = model.provider + '/' + model.model;
+    bag.lastModelSource = String(model.source ?? '');
+    bag.lastAt = started;
 
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = setTimeout(() => {
@@ -148,7 +182,7 @@ export function createSemantic({ ctx, settingsRef }) {
         system,
         messages: [
           {
-            id: 'lingxi-semantic-' + String(stats.calls),
+            id: 'lingxi-semantic-' + String(bag.calls),
             role: 'user',
             content: [{ type: 'text', text: String(user ?? '') }],
             source: { kind: 'user' },
@@ -170,42 +204,42 @@ export function createSemantic({ ctx, settingsRef }) {
           text += chunk.text;
         }
         if (Date.now() - started > CALL_TIMEOUT) {
-          stats.timeout += 1;
-          stats.lastError = 'timeout';
+          bag.timeout += 1;
+          bag.lastError = 'timeout';
           break;
         }
       }
-      stats.lastLatencyMs = Date.now() - started;
+      bag.lastLatencyMs = Date.now() - started;
       // 部分模型只走思考通道；对关键词扩展任务，思考结论同样可用。
       if (text.trim() === '' && reasoning.trim() !== '') {
         text = reasoning.slice(-600);
-        stats.usedReasoning = (stats.usedReasoning ?? 0) + 1;
+        bag.usedReasoning = (bag.usedReasoning ?? 0) + 1;
       }
       if (text.trim() === '') {
-        stats.failed += 1;
-        stats.consecutiveFailures += 1;
-        stats.lastFailAt = Date.now();
-        if (stats.lastError === '') stats.lastError = 'empty-reply';
+        bag.failed += 1;
+        bag.consecutiveFailures += 1;
+        bag.lastFailAt = Date.now();
+        if (bag.lastError === '') bag.lastError = 'empty-reply';
         return '';
       }
-      stats.ok += 1;
-      stats.consecutiveFailures = 0;
-      stats.lastError = '';
-      stats.lastText = text.slice(0, 80);
-      stats.lastFailAt = 0;
+      bag.ok += 1;
+      bag.consecutiveFailures = 0;
+      bag.lastError = '';
+      bag.lastText = text.slice(0, 80);
+      bag.lastFailAt = 0;
       return text;
     } catch (error) {
-      stats.lastLatencyMs = Date.now() - started;
+      bag.lastLatencyMs = Date.now() - started;
       const message = String(error?.message ?? error);
       if (/abort/i.test(message)) {
-        stats.timeout += 1;
-        stats.lastError = 'timeout';
+        bag.timeout += 1;
+        bag.lastError = 'timeout';
       } else {
-        stats.failed += 1;
-        stats.lastError = message.slice(0, 120);
+        bag.failed += 1;
+        bag.lastError = message.slice(0, 120);
       }
-      stats.consecutiveFailures += 1;
-      stats.lastFailAt = Date.now();
+      bag.consecutiveFailures += 1;
+      bag.lastFailAt = Date.now();
       return '';
     } finally {
       clearTimeout(timer);
@@ -336,10 +370,12 @@ export function createSemantic({ ctx, settingsRef }) {
    * 原始补全：给复盘这类需要自定义提示词的场景用。
    * 与 expandQuery 共享模型解析、超时与统计，但不做关键词解析。
    */
-  async function completeRaw(system, user, { maxTokens = 600 } = {}) {
-    if (!enabled()) return '';
+  async function completeRaw(system, user, { maxTokens = 600, kind = 'semantic', requireEnabled = true } = {}) {
+    // 复盘是手动触发的独立任务：不受"语义召回开关"约束，
+    // 但它有自己的模型选择（reviewModel）。
+    if (requireEnabled && !enabled()) return '';
     if (!canCallNow()) return '';
-    return complete(system, String(user ?? ''), { maxTokens });
+    return complete(system, String(user ?? ''), { maxTokens, kind });
   }
 
   /**
@@ -369,6 +405,21 @@ export function createSemantic({ ctx, settingsRef }) {
     return stats;
   }
 
+  /** 复盘侧只读快照（与语义统计完全分离）。 */
+  function reviewSnapshot() {
+    return {
+      model: reviewStats.lastModel,
+      calls: reviewStats.calls,
+      ok: reviewStats.ok,
+      failed: reviewStats.failed,
+      timeout: reviewStats.timeout,
+      lastLatencyMs: reviewStats.lastLatencyMs,
+      lastError: reviewStats.lastError,
+      lastText: reviewStats.lastText,
+      lastAt: reviewStats.lastAt,
+    };
+  }
+
   /** 只读快照：面板与体检用 */
   function snapshot() {
     return {
@@ -396,5 +447,5 @@ export function createSemantic({ ctx, settingsRef }) {
     };
   }
 
-  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, noteProbeResult, currentModel, snapshot };
+  return { isEnabled: enabled, expandQuery, keywordsFor, consolidate, completeRaw, noteProbeResult, currentModel, snapshot, reviewSnapshot };
 }

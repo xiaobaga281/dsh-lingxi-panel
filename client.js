@@ -289,6 +289,10 @@ window.__ModuleLoader__.load({
         reviewTitle: '记忆复盘',
         reviewHint: '让模型逐条审查：分类是否错误、是否已经没有价值。只给建议，不自动改。',
         reviewRun: '开始复盘',
+        reviewModelLabel: '复盘模型',
+        reviewModelHint: '复盘用哪个模型审查记忆。与语义召回相互独立，可以各选各的。',
+        reviewNoModel: '没有可用模型：请在下方选择一个，或在模型配置里设置默认模型',
+        reviewUsedModel: '本次使用：{model}',
         reviewRunning: '复盘进行中…',
         reviewNone: '模型认为当前记忆都合理',
         reviewScanned: '已审查 {n} 条',
@@ -771,6 +775,10 @@ window.__ModuleLoader__.load({
         reviewTitle: 'Memory review',
         reviewHint: 'The model audits each memory: misclassified, or no longer worth keeping. Suggestions only.',
         reviewRun: 'Run review',
+        reviewModelLabel: 'Review model',
+        reviewModelHint: 'Which model audits the memories. Independent from semantic recall.',
+        reviewNoModel: 'No model available: pick one below, or set a default in model settings',
+        reviewUsedModel: 'used: {model}',
         reviewRunning: 'Reviewing…',
         reviewNone: 'The model found nothing to change',
         reviewScanned: '{n} reviewed',
@@ -1518,6 +1526,35 @@ window.__ModuleLoader__.load({
       };
       return h('svg', props, h('path', { d: def.d }));
     }
+    /**
+     * 由后端返回的 provider 目录构造下拉选项。
+     * 语义召回与记忆复盘共用：两者都需要"跟随默认 + 自选已配置模型"。
+     */
+    function buildModelPairs(source, t) {
+      // 入参有两种形状，都要认：
+      //   1) 概览载荷：provider 目录在 source.semanticOptions
+      //   2) options 路由的原始响应：目录直接在 source.providers（顶层）
+      // 只认第一种会让"传给它的原始响应"解析成空，下拉只剩「跟随默认」。
+      const options = Array.isArray(source?.providers)
+        ? source
+        : (source?.semanticOptions ?? source?.injection?.semanticOptions ?? null);
+      const list = [{ value: '', label: t('semanticFollow') }];
+      const providers = Array.isArray(options) ? options : (options?.providers ?? []);
+      for (const provider of providers) {
+        const models = Array.isArray(provider.models) ? provider.models : [];
+        if (models.length === 0) {
+          list.push({ value: provider.id + '|', label: provider.label });
+          continue;
+        }
+        for (const model of models) {
+          const friendly = (provider.labels ?? {})[model];
+          const text = typeof friendly === 'string' && friendly !== '' ? friendly + ' · ' + model : model;
+          list.push({ value: provider.id + '|' + model, label: text });
+        }
+      }
+      return list;
+    }
+
     /** 自绘下拉：原生 select 的弹出列表无法样式化，这里换成圆角浮层。 */
     /** 极小趋势条：一行内展示某场景最近 14 天的次数。 */
     function MiniBars({ points }) {
@@ -1908,24 +1945,7 @@ window.__ModuleLoader__.load({
         if (saved === null || saved === undefined) return '';
         return String(saved.provider ?? '') + '|' + String(saved.model ?? '');
       })();
-      const modelPairs = (() => {
-        const options = data?.semanticOptions ?? data?.injection?.semanticOptions ?? null;
-        const list = [{ value: '', label: t('semanticFollow') }];
-        const providers = Array.isArray(options) ? options : (options?.providers ?? []);
-        for (const provider of providers) {
-          const models = Array.isArray(provider.models) ? provider.models : [];
-          if (models.length === 0) {
-            list.push({ value: provider.id + '|', label: provider.label });
-            continue;
-          }
-          for (const model of models) {
-            const friendly = (provider.labels ?? {})[model];
-            const text = typeof friendly === 'string' && friendly !== '' ? friendly + ' · ' + model : model;
-            list.push({ value: provider.id + '|' + model, label: text });
-          }
-        }
-        return list;
-      })();
+      const modelPairs = buildModelPairs(data, t);
 
       const sw = (checked, onChange) => h('span', { className: 'lx-switch' },
         h('input', { type: 'checkbox', checked, disabled: busy !== '', onChange: (event) => onChange(event.target.checked) }),
@@ -2560,7 +2580,7 @@ window.__ModuleLoader__.load({
         }, t('deleteOne')));
     }
 
-    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked }) {
+    function MemoryTab({ t, memory, busy, context, injection, search, onDecide, onPromote, onForget, onDetail, onDeleteOne, onPurge, onExport, onImport, onImportError, onHygiene, onReset, onSeed, onSelfcheck, onAudit, onRepair, semanticStats, onReview, onApplyReview, reviewState, reviewPicked, setReviewPicked, modelPairs, reviewModelChoice, onReviewModel, reviewModelUsed }) {
       const health = memory?.health ?? null;
       const hygiene = memory?.hygiene ?? null;
       const pending = memory?.pending ?? [];
@@ -2708,6 +2728,21 @@ window.__ModuleLoader__.load({
                 ? h('button', { key: 'apply', type: 'button', className: 'lg-btn', disabled: busy !== '', onClick: onApplyReview }, t('reviewApply'))
                 : null,
             ])),
+
+          // 复盘模型：与语义召回并列的独立选择（两个任务可以各用各的模型）
+          h('div', { className: 'lx-field', key: 'reviewModel' },
+            h('div', { className: 'lx-field-label' }, t('reviewModelLabel')),
+            h('div', { className: 'lx-field-hint' }, t('reviewModelHint')),
+            h('div', { className: 'lx-field-ctl' },
+              h(Select, {
+                value: reviewModelChoice ?? '',
+                options: modelPairs ?? [],
+                onChange: onReviewModel,
+                ariaLabel: t('reviewModelLabel'),
+              })),
+            String(reviewModelUsed ?? '') !== ''
+              ? h('div', { className: 'lx-field-hint' }, t('reviewUsedModel').replace('{model}', String(reviewModelUsed)))
+              : null),
 
           reviewState === null
             ? h('div', { className: 'lx-table-empty' }, t('reviewHint'))
@@ -3010,6 +3045,36 @@ window.__ModuleLoader__.load({
       // 权威状态来自后端（meta 持久化后回传），刷新/重启后开关不回弹
       const [semanticOn, setSemanticOn] = React.useState(data?.injection?.semantic === true);
       const [settingsOpen, setSettingsOpen] = React.useState(false);
+      const rootRef = React.useRef(null);
+
+      // 视图切换复用了宿主的滚动容器：聊天一直停在最底部，
+      // 切到灵犀时那个 scrollTop 被继承，面板一进来就停在底部。
+      // 进入面板（挂载）时，把面板自身与最近的可滚动祖先归零。
+      React.useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const resetOnce = () => {
+          const node = rootRef.current;
+          if (node === null || node === undefined) return;
+          if (node.scrollTop !== 0) node.scrollTop = 0;
+          let parent = node.parentElement;
+          let guard = 0;
+          while (parent !== null && parent !== undefined && guard < 12) {
+            const style = window.getComputedStyle(parent);
+            const scrollable = /(auto|scroll|overlay)/.test(style.overflowY)
+              && parent.scrollHeight > parent.clientHeight + 1;
+            if (scrollable) {
+              if (parent.scrollTop !== 0) parent.scrollTop = 0;
+              break;
+            }
+            parent = parent.parentElement;
+            guard += 1;
+          }
+        };
+        resetOnce();
+        // 首次挂载时内容还是骨架屏，摸不到高度；数据到达后再补一次。
+        const timer = setTimeout(resetOnce, 300);
+        return () => clearTimeout(timer);
+      }, []);
       // 浮层提示队列：每条自动消失，也可手动关。
       const [toasts, setToasts] = React.useState([]);
       const toastSeq = React.useRef(0);
@@ -3034,9 +3099,19 @@ window.__ModuleLoader__.load({
       }, [pushToast]);
       React.useEffect(() => {
         if (data?.injection?.semantic !== undefined) setSemanticOn(data.injection.semantic === true);
+        // 复盘模型来自后端持久化，刷新后要能读回来
+        const savedReview = data?.injection?.reviewModel ?? null;
+        const nextReview = savedReview === null ? '' : String(savedReview.provider ?? '') + '|' + String(savedReview.model ?? '');
+        setReviewModelChoice((current) => (current === '' ? nextReview : current));
       }, [data?.injection?.semantic]);
       const [semanticChoice, setSemanticChoice] = React.useState('');
       const [semanticOptions, setSemanticOptions] = React.useState(null);
+      const [reviewModelChoice, setReviewModelChoice] = React.useState('');
+      // 记忆页的复盘模型下拉与设定抽屉共用同一份 provider 目录
+      const modelPairsForTabs = React.useMemo(
+        () => buildModelPairs(semanticOptions ?? data, t),
+        [semanticOptions, data, t],
+      );
 
       React.useEffect(() => {
         requestJson('lingxi/semantic/options').then((body) => {
@@ -3056,9 +3131,9 @@ window.__ModuleLoader__.load({
       const runReview = () => run('review', async () => {
         setNotice({ kind: 'ok', text: t('reviewRunning') });
         const body = await postJson('lingxi/memory/review', {});
-        if (body.ok !== true && body.error === 'semantic-disabled') {
-          setNotice({ kind: 'error', text: t('reviewNeedSemantic') });
-          return t('reviewNeedSemantic');
+        if (body.ok !== true && (body.error === 'no-model' || body.error === 'semantic-disabled')) {
+          setNotice({ kind: 'error', text: t('reviewNoModel') });
+          return t('reviewNoModel');
         }
         const suggestions = Array.isArray(body.suggestions) ? body.suggestions : [];
         setReviewState({ suggestions, scanned: Number(body.scanned ?? 0), error: String(body.error ?? '') });
@@ -3125,6 +3200,18 @@ window.__ModuleLoader__.load({
         if (body.ok !== true) {
           setNotice({ kind: 'error', text: t('semanticCheckFail').replace('{reason}', String(body.selected?.error ?? 'empty-reply')) });
         }
+        return t('confirmed');
+      });
+
+      // 复盘模型：独立于语义召回的开关与选择。
+      const reviewModelConfig = (value) => run('reviewModel', async () => {
+        const sep = String(value ?? '').indexOf('|');
+        const provider = sep < 0 ? '' : String(value).slice(0, sep);
+        const model = sep < 0 ? '' : String(value).slice(sep + 1);
+        const picked = provider === '' || model === '' ? null : { provider, model };
+        await postJson('lingxi/injection/config', { reviewModel: picked });
+        setReviewModelChoice(picked === null ? '' : provider + '|' + model);
+        await reload(true);
         return t('confirmed');
       });
 
@@ -3500,7 +3587,9 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: 12 } },
             h('button', { type: 'button', className: 'lg-btn', onClick: () => reload(true) }, t('retry'))));
       } else if (data !== null) {
-        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked });
+        if (tab === 'memory') body = h(MemoryTab, { t, memory, busy, context, injection: data.injection, onDecide: decide, onPromote: promote, onForget: forget, onInjection: injectionConfig, onHygiene: hygieneNow, onDetail: openDetail, onReset: openReset, onPurge: purge, onExport: exportAll, onImport: importAll, onImportError: importError, search: data.search, onSelfcheck: selfcheck, onDeleteOne: deleteOne, onAudit: auditStore, onRepair: repairStore, storage: data.storage, onMigrate: migrateStorage, semantic: semanticOn, onSemantic: semanticConfig, onSemanticChoice: semanticChoiceConfig, semanticChoice, setSemanticChoice, semanticOptions, semanticStats: data.semanticStats, onSeed: seedSuggestion, onReview: runReview, onApplyReview: applyReview, reviewState, reviewPicked, setReviewPicked,
+onReviewModel: reviewModelConfig, reviewModelChoice,
+modelPairs: modelPairsForTabs, reviewModelUsed: data.reviewModelUsed });
         else if (tab === 'evolution') body = h(EvolutionTab, { t, derived: data.derived, efficacy: data.efficacy, memory: data.memory, injection: data.injection, busy, onDecide: decide, onPromote: promote, onDetail: openDetail, onFailures: openFailures });
         else body = h(OverviewTab, {
           t,
@@ -3527,7 +3616,7 @@ window.__ModuleLoader__.load({
         body = h(Empty, { icon: 'spark', title: t('noInsights') });
       }
 
-      return h('div', { className: 'lg-root' },
+      return h('div', { className: 'lg-root', ref: rootRef },
         h('div', { className: 'lg-shell' },
           h('header', { className: 'lg-header' },
             h('div', null,

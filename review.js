@@ -56,7 +56,13 @@ export function createReviewer({ ctx, settingsRef, semantic }) {
         text: String(item.text ?? '').slice(0, 300),
       }));
       const prompt = '请审查下面这些记忆：\n\n' + JSON.stringify(payload, null, 1);
-      const raw = await semantic.completeRaw(REVIEW_SYSTEM, prompt, { maxTokens: 1200 });
+      // 复盘是独立任务：用自己的模型（reviewModel），
+      // 也不受"语义召回开关"约束——关掉语义召回仍应能复盘。
+      const raw = await semantic.completeRaw(REVIEW_SYSTEM, prompt, {
+        maxTokens: 1200,
+        kind: 'review',
+        requireEnabled: false,
+      });
       if (raw === '') {
         errors.push('empty-reply@' + offset);
         continue;

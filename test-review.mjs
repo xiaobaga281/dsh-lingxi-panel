@@ -78,6 +78,62 @@ await checkAsync('复盘：不把命中率等数字喂给模型（避免被使�
   assert.equal(/hitCount|exposures|命中/.test(captured), false, 'prompt must not leak usage numbers');
 });
 
+
+await checkAsync('复盘不受语义召回开关约束（可独立选模型）', async () => {
+  const { createSemantic } = await import('./semantic.js');
+  const llm = {
+    listProviders: () => [{ id: 'p' }],
+    stream: () => (async function* () { yield { type: 'text-delta', text: '[]' }; })(),
+  };
+  const ctx = {
+    get: (n) => n === 'llm' ? llm
+      : n === 'agentDefaultModel' ? { currentSelection: () => ({ provider: 'p', model: 'm' }) }
+      : undefined,
+  };
+  // 语义召回关闭，且未选任何模型 → 跟随默认
+  const settings = { semantic: false, semanticModel: null, reviewModel: null };
+  const sem = createSemantic({ ctx, settingsRef: () => settings });
+
+  // 1) 语义路径被开关挡住
+  const blocked = await sem.completeRaw('s', 'u');
+  assert.equal(blocked, '', 'semantic path blocked while disabled');
+
+  // 2) 复盘路径仍可用（这是本次修复的核心）
+  const viaReview = await sem.completeRaw('s', 'u', { kind: 'review', requireEnabled: false });
+  assert.ok(viaReview !== '', 'review must work with semantic disabled');
+
+  // 3) 复盘记账进自己的桶，不污染语义统计（否则会误触发"语义不可用"告警）
+  const rs = sem.reviewSnapshot();
+  const ss = sem.snapshot();
+  assert.equal(rs.calls, 1, 'review call recorded: ' + rs.calls);
+  assert.equal(ss.calls, 0, 'semantic stats not polluted: ' + ss.calls);
+  assert.equal(ss.consecutiveFailures, 0, 'no false semantic failure');
+});
+
+await checkAsync('复盘可指定自己的模型（reviewModel 优先于默认）', async () => {
+  const { createSemantic } = await import('./semantic.js');
+  let used = null;
+  const llm = {
+    listProviders: () => [{ id: 'picked-provider' }],
+    stream: (opts) => {
+      used = opts.provider + '/' + opts.model;
+      return (async function* () { yield { type: 'text-delta', text: '[]' }; })();
+    },
+  };
+  const ctx = {
+    get: (n) => n === 'llm' ? llm
+      : n === 'agentDefaultModel' ? { currentSelection: () => ({ provider: 'default-p', model: 'default-m' }) }
+      : undefined,
+  };
+  const settings = {
+    semantic: false,
+    semanticModel: { provider: 'sem-p', model: 'sem-m' },
+    reviewModel: { provider: 'picked-provider', model: 'review-m' },
+  };
+  const sem = createSemantic({ ctx, settingsRef: () => settings });
+  await sem.completeRaw('s', 'u', { kind: 'review', requireEnabled: false });
+  assert.equal(used, 'picked-provider/review-m', 'review must use its own model, got: ' + used);
+});
 console.log(checks.join('\n'));
 const failed = checks.filter((line) => line.includes('FAIL')).length;
 console.log(failed === 0 ? '通过 ' + checks.length + ' 项' : '失败 ' + failed + ' 项');
