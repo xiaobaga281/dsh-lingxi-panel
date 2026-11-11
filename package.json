@@ -1,6 +1,6 @@
 {
   "name": "dsh-lingxi-panel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "displayName": "灵犀",
   "description": "灵犀工作台：闸门、环境事实、技能提名、进化疗效与记忆库合成一个原生面板，明暗主题跟随应用。",
   "type": "module",
@@ -17,6 +17,7 @@
   "files": [
     "index.js",
     "semantic.js",
+    "review.js",
     "client.js",
     "injector.js",
     "metrics.js",
@@ -28,12 +29,23 @@
     "hygiene.js",
     "memoryTool.js",
     "noise.js",
-    "audit.mjs",
     "memory/*.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "audit.mjs",
+    "test-helpers.mjs",
+    "test-all.mjs",
+    "test-eval.mjs",
+    "test-evolve.mjs",
+    "test-hygiene.mjs",
+    "test-injector.mjs",
+    "test-memorytool.mjs",
+    "test-metrics.mjs",
+    "test-package.mjs",
+    "test-review.mjs",
+    "memory/test.mjs"
   ],
   "dsh": {
     "bundle": {

@@ -16,7 +16,7 @@ const PLACEHOLDER = /^(继续|好的?|嗯+|哦+|ok|okay|test|testing|demo|示例
 const PLACEHOLDER_INNER = /(lorem ipsum|占位符|待补充|待定|测试用例|test data)/i;
 const SYMBOL_ONLY = /^[\s\p{P}\p{S}\d]+$/u;
 
-export function scoreNoise(record, { at = Date.now() } = {}) {
+function scoreNoise(record, { at = Date.now() } = {}) {
   const text = String(record?.text ?? record?.goal ?? record?.action ?? record?.detail ?? '').trim();
   const reasons = [];
   let score = 0;
@@ -125,10 +125,3 @@ function defaultGroupKey(record) {
   // 按类型聚簇而不是按分类：同一件事常被不同会话记到不同 category 下。
   return String(record?.kind ?? '');
 }
-
-export function isNoisy(entry, threshold = 0.5) {
-  return (entry?.noise?.score ?? 0) >= threshold;
-}
-
-
-

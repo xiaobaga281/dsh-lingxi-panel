@@ -5,16 +5,7 @@
 import assert from 'node:assert/strict';
 import { createEvolver, fitnessFromDelta } from './evolve.js';
 
-const checks = [];
-async function check(name, fn) {
-  try {
-    await fn();
-    checks.push(`  ok  ${name}`);
-  } catch (error) {
-    checks.push(`  FAIL ${name}: ${error.message}`);
-    throw error;
-  }
-}
+import { checks, check, report } from './test-helpers.mjs';
 
 await check('初始：默认均衡臂，四组参数可选', async () => {
   const evolver = createEvolver();
@@ -85,5 +76,4 @@ await check('得分公式：命中得分，证伪与重复失败扣分更重', a
   assert.equal(fitnessFromDelta(undefined), 0);
 });
 
-console.log(checks.join('\n'));
-console.log(`\n通过 ${checks.length} 项`);
+report();

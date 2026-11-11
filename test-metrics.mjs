@@ -26,16 +26,7 @@ import {
   series,
 } from './metrics.js';
 
-const checks = [];
-async function check(name, fn) {
-  try {
-    await fn();
-    checks.push(`  ok  ${name}`);
-  } catch (error) {
-    checks.push(`  FAIL ${name}: ${error.message}`);
-    throw error;
-  }
-}
+import { checks, check, report } from './test-helpers.mjs';
 
 await check('日期键为 YYYY-MM-DD', async () => {
   assert.equal(dayKey(new Date('2026-10-26T12:00:00').getTime()), '2026-10-26');
@@ -419,5 +410,4 @@ await check('同一载荷对象里不出现重复键（coverage 曾写两次）'
   }
   assert.equal(dup, 0, 'no duplicated coverage key in the same payload object, found ' + dup);
 });
-console.log(checks.join('\n'));
-console.log(`\n通过 ${checks.length} 项`);
+report();

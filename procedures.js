@@ -13,7 +13,7 @@ const MIN_REPEAT = 1;
  * 这样 read→glob→read 与 glob→read→glob 视为同一类流程（窗口滑动不换键），
  * 同一流程才能累计到重复次数；同时仍区分不同工具的搭配。
  */
-export function sequenceKey(tools) {
+function sequenceKey(tools) {
   const list = (Array.isArray(tools) ? tools : [])
     .map((tool) => String(tool ?? ''))
     .filter((name) => name !== '');
@@ -23,7 +23,7 @@ export function sequenceKey(tools) {
 }
 
 /** 按文件名给流程起个用途短句，让注入时模型能一眼判断相关性。 */
-export function describeSequence(tools) {
+function describeSequence(tools) {
   const list = Array.isArray(tools) ? tools.map((tool) => String(tool)) : [];
   if (list.length === 0) return '';
   const first = list[0];
@@ -66,4 +66,4 @@ export function shouldCreateProcedure({ sessions, created = false, minSessions =
   return Number.isFinite(distinct) && distinct >= Math.max(1, minSessions);
 }
 
-export { WINDOW, MIN_REPEAT };
+export { sequenceKey, describeSequence, WINDOW, MIN_REPEAT };

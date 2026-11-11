@@ -5,16 +5,7 @@
 import assert from 'node:assert/strict';
 import { createMemoryReader, createMemoryWriter, validateMemoryWrite } from './memoryTool.js';
 
-const checks = [];
-async function check(name, fn) {
-  try {
-    await fn();
-    checks.push(`  ok  ${name}`);
-  } catch (error) {
-    checks.push(`  FAIL ${name}: ${error.message}`);
-    throw error;
-  }
-}
+import { checks, check, report } from './test-helpers.mjs';
 
 await check('校验：kind/长度/占位符/问句都会被拒', async () => {
   assert.equal(validateMemoryWrite({ kind: 'wrong', text: '一些内容' }).ok, false);
@@ -110,5 +101,4 @@ await check('检索：空查询报错，无结果时 abstain=true', async () => 
   assert.equal(empty.value.count, 0);
 });
 
-console.log(checks.join('\n'));
-console.log(`\n通过 ${checks.length} 项`);
+report();

@@ -17,6 +17,7 @@ const suites = [
   ['复盘', 'test-review.mjs'],
   ['记忆工具', 'test-memorytool.mjs'],
   ['检索基准', 'test-eval.mjs'],
+  ['打包完整性', 'test-package.mjs'],
 ];
 
 let failed = 0;

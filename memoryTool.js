@@ -8,7 +8,7 @@
  *   - 文本长度与占位符校验；
  *   - 一律以 private + candidate 落库，跨会话共享必须由人 promote。
  */
-export const MEMORY_KINDS = ['constraint', 'preference', 'fact', 'lesson', 'skill'];
+const MEMORY_KINDS = ['constraint', 'preference', 'fact', 'lesson', 'skill'];
 
 export const TOOL_NAME = 'lingxi_remember';
 

@@ -16,8 +16,6 @@ export function sceneOf(tool) {
   return 'other';
 }
 
-export const SCENES = ['file', 'command', 'web', 'other'];
-
 /** 默认预算（字符）：读文件类通常短、命令类信息量大。 */
 export const DEFAULT_BUDGETS = {
   file: 500,
@@ -25,6 +23,3 @@ export const DEFAULT_BUDGETS = {
   web: 500,
   other: 700,
 };
-
-/** 进化候选预算（每场景独立选）。 */
-export const BUDGET_ARMS = [400, 700, 1200];

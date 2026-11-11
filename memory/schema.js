@@ -361,17 +361,6 @@ export function stripNegation(text) {
   return value;
 }
 
-export function polarity(text) {
-  const value = normalizeText(text);
-  let negative = 0;
-  let positive = 0;
-  for (const marker of NEGATIVE_MARKERS) if (value.includes(normalizeText(marker))) negative += 1;
-  for (const marker of POSITIVE_MARKERS) if (value.includes(normalizeText(marker))) positive += 1;
-  if (negative > 0 && positive === 0) return -1;
-  if (positive > 0 && negative === 0) return 1;
-  return 0;
-}
-
 /**
  * 两条记录是否互相矛盾。
  *

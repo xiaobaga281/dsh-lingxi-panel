@@ -263,7 +263,7 @@ const PUSHBACK_PATTERNS = [
 ];
 
 /** 返回 none | explicit | pushback：两档强度不同，分开计数才诚实。 */
-export function classifyCorrectionKind(text) {
+function classifyCorrectionKind(text) {
   const value = String(text ?? '').trim();
   if (value === '') return 'none';
   if (CORRECTION_PATTERNS.some((pattern) => pattern.test(value))) return 'explicit';

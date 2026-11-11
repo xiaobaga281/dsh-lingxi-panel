@@ -136,11 +136,6 @@ export function applyAdoptionOverrides(overrides) {
   }
 }
 
-export function adoptionOverrides() {
-  return Object.fromEntries(EXPECTED_OVERRIDES.entries());
-}
-
-
 export function expectedToolsFor(code) {
   const key = String(code ?? '');
   const override = EXPECTED_OVERRIDES.get(key);

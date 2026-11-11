@@ -13,16 +13,7 @@ import {
   usableForInjection,
 } from './hygiene.js';
 
-const checks = [];
-async function check(name, fn) {
-  try {
-    await fn();
-    checks.push(`  ok  ${name}`);
-  } catch (error) {
-    checks.push(`  FAIL ${name}: ${error.message}`);
-    throw error;
-  }
-}
+import { checks, check, report } from './test-helpers.mjs';
 
 const base = {
   text: '当「read」遇到「FS_NOT_FOUND」时：先用 glob 确认路径存在',
@@ -226,5 +217,4 @@ await check('约束与偏好永不判为可推导（那是用户的意志，不�
   // 约束即使含错误码也只是更高，不会下沉
   assert.ok(scarcityOf({ text: '遇到 FS_NOT_FOUND 必须先 glob 确认', kind: 'constraint' }) >= 1.0, 'coded constraint');
 });
-console.log(checks.join('\n'));
-console.log(`\n通过 ${checks.length} 项`);
+report();

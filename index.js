@@ -851,23 +851,6 @@ export function apply(ctx, config) {
   }
 
   /** 只读体检：开机跑一次，结果进状态；失败时进告警。 */
-  async function runAuditOnce() {
-    try {
-      const base = path.dirname(fileURLToPath(import.meta.url));
-      const child = spawn(process.execPath, [path.join(base, 'audit.mjs')], { cwd: base });
-      let out = '';
-      child.stdout.on('data', (chunk) => { out += String(chunk); });
-      child.stderr.on('data', (chunk) => { out += String(chunk); });
-      const timer = setTimeout(() => { try { child.kill(); } catch { /* ignore */ } }, 60_000);
-      child.on('close', (code) => {
-        clearTimeout(timer);
-        lastAudit = { ok: code === 0, at: Date.now(), lines: out.split('\n').filter((line) => line.trim() !== '').slice(-30) };
-      });
-    } catch {
-      lastAudit = { ok: false, at: Date.now(), lines: [] };
-    }
-  }
-
   async function computeAlerts() {
     const list = [];
     try {

@@ -219,7 +219,7 @@ export class LingxiMemory {
 const KIND_ORDER = ['constraint', 'preference', 'fact', 'skill', 'lesson', 'strategy', 'episode'];
 
 /** 把检索结果拼成等宽紧凑的注入块；只给模型看，不做花哨排版。 */
-export function buildRecallText(items, { header = '【灵犀记忆】' } = {}) {
+function buildRecallText(items, { header = '【灵犀记忆】' } = {}) {
   if (!Array.isArray(items) || items.length === 0) return '';
   const grouped = new Map();
   for (const entry of items) {
@@ -255,10 +255,6 @@ export function buildRecallTextWithin(items, budget) {
     slice = slice.slice(0, -1);
   }
   return { text: '', items: [] };
-}
-
-export function createMemory(options = {}) {
-  return new LingxiMemory(options);
 }
 
 export { MemoryStore, createRecord, effectiveConfidence };

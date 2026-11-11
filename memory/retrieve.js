@@ -12,7 +12,7 @@ const K1 = 1.2;
 const B = 0.75;
 
 /** 默认权重：可被调用方按场景覆盖（例如"排错"场景提高向量与置信度权重）。 */
-export const DEFAULT_WEIGHTS = {
+const DEFAULT_WEIGHTS = {
   lexical: 2.0,
   confidence: 1.2,
   scope: 0.9,
@@ -20,7 +20,7 @@ export const DEFAULT_WEIGHTS = {
   usage: 0.35,
 };
 
-export function tokenize(text) {
+function tokenize(text) {
   const tokens = [];
   const value = String(text ?? '').toLowerCase();
   const latin = value.match(/[a-z0-9_./-]{2,}/g) ?? [];
@@ -30,7 +30,7 @@ export function tokenize(text) {
 }
 
 /** 为一个查询建一次性倒排索引；记忆规模在万级以内，这个成本可以忽略。 */
-export function buildIndex(records) {
+function buildIndex(records) {
   const docs = [];
   const df = new Map();
   for (const record of records) {
@@ -65,7 +65,7 @@ function bm25(index, doc, queryTokens) {
  * 作用域与共享闸门：委托给 schema.mayInject，保证"跨会话不串门"只有一处判据。
  * 这里是唯一入口——检索、列表、面板都不允许绕开它自己判断。
  */
-export function scopeApplies(record, context, at = Date.now()) {
+function scopeApplies(record, context, at = Date.now()) {
   return mayInject(record, context, at);
 }
 
@@ -95,7 +95,7 @@ const CODE_HINTS = [
   [/(重定向|跳转被拦)/, 'WEB_REDIRECT_BLOCKED'],
 ];
 
-export function inferCodeHints(query) {
+function inferCodeHints(query) {
   const text = String(query ?? '');
   const codes = new Set();
   for (const [pattern, code] of CODE_HINTS) {
@@ -104,7 +104,7 @@ export function inferCodeHints(query) {
   return [...codes];
 }
 
-export function deriveQueryTopics(query) {
+function deriveQueryTopics(query) {
   const text = String(query ?? '');
   const lower = text.toLowerCase();
   const topics = new Set();

@@ -4,25 +4,7 @@
 import assert from 'node:assert/strict';
 import { createReviewer } from './review.js';
 
-const checks = [];
-const check = (name, fn) => {
-  try {
-    fn();
-    checks.push('  ok  ' + name);
-  } catch (error) {
-    checks.push('  FAIL ' + name + ' :: ' + error.message);
-    process.exitCode = 1;
-  }
-};
-const checkAsync = async (name, fn) => {
-  try {
-    await fn();
-    checks.push('  ok  ' + name);
-  } catch (error) {
-    checks.push('  FAIL ' + name + ' :: ' + error.message);
-    process.exitCode = 1;
-  }
-};
+import { checks, checkAsync, report } from './test-helpers.mjs';
 
 const makeReviewer = (reply) => createReviewer({
   ctx: null,
@@ -207,7 +189,4 @@ await checkAsync('批次足够小，单次请求不会要求过多输出', async
   const timeout = /timeoutMs: (\d+)/.exec(src);
   assert.ok(timeout !== null && Number(timeout[1]) >= 20000, 'review needs a longer timeout than keyword expansion, got ' + (timeout === null ? 'none' : timeout[1]));
 });
-console.log(checks.join('\n'));
-const failed = checks.filter((line) => line.includes('FAIL')).length;
-console.log(failed === 0 ? '通过 ' + checks.length + ' 项' : '失败 ' + failed + ' 项');
-if (failed > 0) process.exit(1);
+report();
