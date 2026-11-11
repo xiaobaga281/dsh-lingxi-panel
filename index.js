@@ -200,12 +200,13 @@ export function apply(ctx, config) {
   /** 投影给客户端：进度、结果、耗时。 */
   const reviewStateForClient = () => {
     if (reviewRun === null) {
-      return { running: false, done: 0, total: 0, scanned: 0, suggestions: [], error: '', model: '', elapsedMs: 0 };
+      return { running: false, success: false, done: 0, total: 0, scanned: 0, suggestions: [], error: '', model: '', elapsedMs: 0 };
     }
     const until = reviewRun.finishedAt > 0 ? reviewRun.finishedAt : Date.now();
     return {
       running: reviewRun.running === true,
-      ok: reviewRun.ok === true,
+      // 用 success 而不是 ok：ok 是响应信封的字段，展开时会互相覆盖
+      success: reviewRun.ok === true,
       done: reviewRun.done,
       total: reviewRun.total,
       scanned: reviewRun.scanned,

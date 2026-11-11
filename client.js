@@ -3165,18 +3165,22 @@ window.__ModuleLoader__.load({
           return t('reviewNone');
         }
         let state = body;
-        // 最多等约 5 分钟，期间持续刷新进度
-        for (let i = 0; i < 250; i += 1) {
-          if (state.running !== true) break;
-          setReviewProgress({
-            done: Number(state.done ?? 0),
-            total: Number(state.total ?? 0),
-            elapsedMs: Number(state.elapsedMs ?? 0),
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-          state = await getJson('lingxi/memory/review');
+        // 最多等约 5 分钟，期间持续刷新进度。
+        // finally 里清进度：轮询一旦出错也要把"正在准备"收掉，不能让它永久挂着。
+        try {
+          for (let i = 0; i < 250; i += 1) {
+            if (state.running !== true) break;
+            setReviewProgress({
+              done: Number(state.done ?? 0),
+              total: Number(state.total ?? 0),
+              elapsedMs: Number(state.elapsedMs ?? 0),
+            });
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            state = await getJson('lingxi/memory/review');
+          }
+        } finally {
+          setReviewProgress(null);
         }
-        setReviewProgress(null);
         const suggestions = Array.isArray(state.suggestions) ? state.suggestions : [];
         setReviewState({ suggestions, scanned: Number(state.scanned ?? 0), error: String(state.error ?? '') });
         // 默认勾选所有需要变更的项（保留项无需处理）

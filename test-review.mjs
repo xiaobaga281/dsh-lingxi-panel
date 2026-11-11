@@ -164,6 +164,20 @@ await checkAsync('进度回调抛错不影响复盘结果', async () => {
   assert.equal(out.verdicts.length, 1, 'verdicts still produced');
   assert.equal(out.verdicts[0].verdict, 'drop');
 });
+
+await checkAsync('复盘响应信封不被覆盖：state 里不能再有 ok 字段', async () => {
+  // 背景：宿主用 { ok: true, ...state } 组装响应。
+  // 如果 state 自己带 ok（且运行中为 false），展开会覆盖信封的 ok，
+  // 客户端就会把"复盘本身失败"读成"请求失败"，进度永远停在准备中。
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const start = src.indexOf('const reviewStateForClient');
+  assert.ok(start > 0, 'reviewStateForClient exists');
+  const body = src.slice(start, start + 1600);
+  const okKeys = body.match(/\bok:/g) ?? [];
+  assert.equal(okKeys.length, 0, 'projection must not define an ok key, found ' + okKeys.length);
+  assert.ok(body.includes('success:'), 'projection exposes success instead');
+});
 console.log(checks.join('\n'));
 const failed = checks.filter((line) => line.includes('FAIL')).length;
 console.log(failed === 0 ? '通过 ' + checks.length + ' 项' : '失败 ' + failed + ' 项');
