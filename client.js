@@ -2938,7 +2938,9 @@ window.__ModuleLoader__.load({
         // 复盘在后台跑：先拿回执，再轮询进度，用户能看到审查到第几条。
         setReviewProgress({ done: 0, total: 0, elapsedMs: 0 });
         const body = await postJson('lingxi/memory/review', {});
-        if (body.ok !== true) {
+        // 后端启动失败返回 {ok:false, error}；成功返回 {ok:true, ...state}。
+        // 注意 body.ok 是信封字段（成功路径恒 true），不能用来判断业务成败。
+        if (typeof body.error === 'string' && body.error !== '') {
           setReviewProgress(null);
           if (body.error === 'no-model' || body.error === 'semantic-disabled') {
             setNotice({ kind: 'error', text: t('reviewNoModel') });
@@ -3054,8 +3056,12 @@ window.__ModuleLoader__.load({
           subtitle: working.length === 0 ? t('semanticDiagNone') : working.join(', '),
           rows,
         });
-        if (body.ok !== true) {
-          setNotice({ kind: 'error', text: t('semanticCheckFail').replace('{reason}', String(body.selected?.error ?? 'empty-reply')) });
+        // body.ok 是信封字段（恒 true），探测结论在 success 上。
+        // 读 body.ok 会让「诊断失败」永远不报错——静默失败比报错更糟。
+        const probeOk = body.success === true && body.selected?.ok === true;
+        if (!probeOk) {
+          const reason = semanticReason(body.selected?.error ?? body.error ?? 'empty-reply', t);
+          setNotice({ kind: 'error', text: t('semanticCheckFail').replace('{reason}', reason) });
         }
         return t('confirmed');
       });

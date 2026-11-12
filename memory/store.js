@@ -57,8 +57,22 @@ export class MemoryStore {
     return path.join(this.dir, STORE_FILE);
   }
 
-  async load() {
-    if (this.loaded) return this;
+  /**
+   * 加载记忆库。
+   *
+   * 并发安全：多个调用共享同一次加载（_loadPromise）。
+   * 原实现的 bug：首次加载完成前，并发的 load() 会各自执行
+   * `records.clear()` 再重读磁盘——把其他调用已放入内存、
+   * 但还没落盘的记录清掉，造成数据丢失（30 并发只存下 10 条）。
+   * 缓存 load Promise 后，并发调用等待同一次加载，不再互相清空。
+   */
+  load() {
+    if (this.loaded) return Promise.resolve(this);
+    if (!this._loadPromise) this._loadPromise = this._doLoad();
+    return this._loadPromise;
+  }
+
+  async _doLoad() {
     await fsp.mkdir(this.dir, { recursive: true });
     let raw = null;
     try {
@@ -81,14 +95,27 @@ export class MemoryStore {
     return this;
   }
 
-  async save() {
+  /**
+   * 并发安全：所有落盘都排进同一条 Promise 链。
+   * 原实现里两个并发 save 会共用同一个 .tmp 文件——
+   * A 写完 tmp、B 又覆盖 tmp、A 再 rename，就会把 B 的内容当成 A 的结果，
+   * 甚至把 tmp rename 走导致 B 的 rename 落空。串行化后这个窗口消失。
+   */
+  save() {
+    if (!this._saveChain) this._saveChain = Promise.resolve();
+    this._saveChain = this._saveChain.then(() => this._saveNow()).catch(() => {});
+    return this._saveChain;
+  }
+
+  async _saveNow() {
     if (!this.dirty) return;
     const payload = {
       schemaVersion: SCHEMA_VERSION,
       updatedAt: nowMs(),
       records: [...this.records.values()],
     };
-    const tmp = `${this.file}.tmp`;
+    // 每次用独立的临时文件名，进一步避免任何残留覆盖
+    const tmp = `${this.file}.${process.pid}.tmp`;
     try {
       await fsp.mkdir(this.dir, { recursive: true });
       await fsp.writeFile(tmp, JSON.stringify(payload), 'utf8');

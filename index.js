@@ -359,12 +359,13 @@ export function apply(ctx, config) {
   /** 投影给客户端：进度 + 结果。 */
   const probeStateForClient = () => {
     if (probeRun === null) {
-      return { running: false, ok: false, done: 0, total: 0, selected: null, attempts: [], working: [], error: '', elapsedMs: 0 };
+      return { running: false, success: false, done: 0, total: 0, selected: null, attempts: [], working: [], error: '', elapsedMs: 0 };
     }
     const until = probeRun.finishedAt > 0 ? probeRun.finishedAt : Date.now();
     return {
       running: probeRun.running === true,
-      ok: probeRun.ok === true,
+        // 用 success 而不是 ok：ok 是响应信封的字段，展开时会互相覆盖。
+      success: probeRun.ok === true,
       done: probeRun.done,
       total: probeRun.total,
       selected: probeRun.selected,
@@ -1356,7 +1357,6 @@ export function apply(ctx, config) {
         retireReason: String(record.meta?.retireReason ?? ''),
         demoteReason: String(record.meta?.demoteReason ?? ''),
         gapFilled: record.meta?.gapFilled === true,
-        demoteReason: String(record.meta?.demoteReason ?? ''),
         updatedAt: record.updatedAt,
       })),
       facts: byKind(['constraint', 'preference', 'fact']).slice(0, 12).map((record) => ({
@@ -1548,7 +1548,6 @@ export function apply(ctx, config) {
         autoReviewDays: Number(settings.autoReviewDays) || 7,
         causalExperiment: settings.causalExperiment === true,
         causalHoldoutRate: Number(settings.causalHoldoutRate) || 0,
-        causal: causalCache ?? null,
         reviewModelUsed: lastReviewModel,
         reviewStats: semantic.reviewSnapshot(),
         // 复盘自身的运行状态（与 semantic 的统计分开，避免互相污染）
@@ -1836,6 +1835,8 @@ export function apply(ctx, config) {
           reviewModelUsed: lastReviewModel,
           reviewStats: semantic.reviewSnapshot(),
           audit: lastAudit,
+          // 因果对照结论：客户端读顶层 data.causal（不是 data.injection.causal）。
+          causal: await computeCausal(),
           alerts,
           evolution,
           scenes: injector.sceneSnapshot(),

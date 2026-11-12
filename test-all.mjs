@@ -18,6 +18,8 @@ const suites = [
   ['记忆工具', 'test-memorytool.mjs'],
   ['检索基准', 'test-eval.mjs'],
   ['打包完整性', 'test-package.mjs'],
+  ['边界契约', 'test-boundaries.mjs'],
+  ['字段契约', 'test-contract.mjs'],
 ];
 
 let failed = 0;
